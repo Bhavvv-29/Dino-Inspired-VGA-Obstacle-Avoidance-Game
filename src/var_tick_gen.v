@@ -11,7 +11,7 @@ module var_tick_gen (
         if (!rst_n)
             count <= 0;
         else
-            count <= (count >= max_count) ? 0 : count + 1'b1;
+            count <= (count >= max_count) ? 0 : count+1;
     end
 
     assign tick = (count >= max_count);

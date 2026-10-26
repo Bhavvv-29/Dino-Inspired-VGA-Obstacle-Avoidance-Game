@@ -66,30 +66,21 @@ module tt_um_dino(
     wire tick, ball_y_tick, obs_tick;
     
     localparam TICK_MAX_COUNT = 1_724_137;
-    
-    wire [20:0] tick_max_count;
 
-    fixed_tick_gen #(   
-        .MAX_COUNT(TICK_MAX_COUNT)
-    ) u_tick (
+    fixed_tick_gen u_tick (
         .clk(clk),
         .rst_n(rst_n),
-        .tick(tick)
+        .tick(tick),
+        .obs_tick(obs_tick)
     );
 
+    wire [20:0] tick_max_count;
+    
     var_tick_gen u_ball_y_tick (
         .clk(clk),
         .rst_n(rst_n),
         .max_count(tick_max_count),
         .tick(ball_y_tick)
-    );
-
-    fixed_tick_gen #(
-      .MAX_COUNT(50_000)
-    ) u_obstacle_tick (
-        .clk(clk),
-        .rst_n(rst_n),
-        .tick(obs_tick)
     );
 
     // game over logic -------------------------------------------------------------------------

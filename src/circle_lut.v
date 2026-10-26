@@ -4,14 +4,13 @@ module circle_lut #(
     input [9:0] x, y, ball_y,
     output inside_circle
 );
-
     localparam BALL_R = 30;
 
-    wire [9:0] dx;
-    wire [9:0] dy;
+    wire [10:0] diff_x = x-BALL_X;
+    wire [10:0] diff_y = y-ball_y;
 
-    assign dx = (x>=BALL_X) ? x-BALL_X : BALL_X-x;
-    assign dy = (y>=ball_y) ? (y-ball_y) : (ball_y - y);
+    wire [9:0] dx = diff_x[9:0]^{10{diff_x[10]}};
+    wire [9:0] dy = diff_y[9:0]^{10{diff_y[10]}};
 
     reg [4:0] circle_half_width;
 
@@ -52,6 +51,6 @@ module circle_lut #(
         endcase
     end
 
-    assign inside_circle = (dy<=BALL_R) && dx<=circle_half_width;
+    assign inside_circle = (dy<=BALL_R) && (dx[9:5]==0) && (dx[4:0]<=circle_half_width);
 
 endmodule

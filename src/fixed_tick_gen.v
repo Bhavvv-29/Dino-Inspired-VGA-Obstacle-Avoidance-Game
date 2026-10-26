@@ -1,19 +1,20 @@
-module fixed_tick_gen #(
-    parameter MAX_COUNT=100_000
-  )(
+module fixed_tick_gen (
     input clk, rst_n,
-    output tick
-); 
-    reg [20:0] count;
+    output tick, obs_tick
+);  
+
+    localparam COUNT_WIDTH = 21;
+    reg [COUNT_WIDTH-1:0] count;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             count <= 0;
         else
-            count <= (count>=MAX_COUNT) ? 0 : count+1;
+            count <= count+1;
     end
 
-    assign tick = (count>=MAX_COUNT);
+    assign tick = (count=={COUNT_WIDTH{1'b1}});
+    assign obs_tick = (count[COUNT_WIDTH-5:0] == {(COUNT_WIDTH-4){1'b1}});
 endmodule
 
             
