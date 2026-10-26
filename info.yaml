@@ -22,6 +22,7 @@ project:
     - "var_tick_gen.v"
     - "LFSR.v"
     - "dff.v"
+    - "circle_lut.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 pinout:
