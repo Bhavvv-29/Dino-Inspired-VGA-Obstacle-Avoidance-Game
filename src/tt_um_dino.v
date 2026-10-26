@@ -1,5 +1,3 @@
-`default_nettype none
-
 module tt_um_dino(
     input  wire [7:0] ui_in,    // Dedicated inputs
     output wire [7:0] uo_out,   // Dedicated outputs
@@ -20,7 +18,7 @@ module tt_um_dino(
 
     //rand bit
     wire obstical_tick; 
-    wire clk_25mhz;
+    
     // TinyVGA PMOD
     assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
 
@@ -39,179 +37,147 @@ module tt_um_dino(
     .vpos(y)
     );
 
-  //25Mhz clock gen
-  dff #(
-   .RST_VAL(1'b0)
-  ) u_dff_25mhz(
-   .clk_25mhz(clk),
-   .rst(rst_n),
-   .d(~clk_25mhz),
-   .q(clk_25mhz)
-);
-
-  //LFSR 
-  LFSR #(
-   .N    (6),
-   .TAPS (6'b110000),
-   .SEED (6'b001100)
-) u_lfsr (
-   .clk_25mhz (clk),
-   .rst       (rst_n),
-   .tick      (speed_tick),
-   .rand_bit  (obstical_tick)
-);
+    //LFSR 
+    LFSR #(
+    .N    (6),
+    .TAPS (6'b110000),
+    .SEED (6'b001100)
+    ) u_lfsr (
+    .clk_25mhz (clk),
+    .rst       (rst_n),
+    .tick      (tick),
+    .rand_bit  (obstical_tick)
+    );
 
     // edge detector
-    wire db_in, jmp_in;
-    reg db_in_reg;
-
-    assign db_in = ui_in[0];
+    wire jmp_in;
+    reg jmp_in_reg;
 
     always @(posedge clk or negedge rst_n) begin
       if(!rst_n)
-          db_in_reg <= 1'b0;
+          jmp_in_reg <= 1'b0;
       else
-          db_in_reg <= db_in;
+          jmp_in_reg <= ui_in[0];
     end
 
-    assign jmp_in = db_in != (db_in_reg);
+    assign jmp_in = (ui_in[0]!=jmp_in_reg);
 
-    // tick generator ----------------------------------------------------------------------
-    wire speed_tick, ball_k_tick;
+    // tick generator ---------------------------------------------------------------------------
+    wire tick, ball_y_tick, obs_tick;
     
-    localparam SPEED_TICK_MAX_COUNT = 1_724_137;
+    localparam TICK_MAX_COUNT = 1_724_137;
     
-    wire [20:0] speed_tick_max_count;
+    wire [20:0] tick_max_count;
 
     fixed_tick_gen #(   
-        .MAX_COUNT(SPEED_TICK_MAX_COUNT)
-    ) u_speed_tick (
+        .MAX_COUNT(TICK_MAX_COUNT)
+    ) u_tick (
         .clk(clk),
         .rst_n(rst_n),
-        .tick(speed_tick)
+        .tick(tick)
     );
 
-    var_tick_gen u_ball_k_tick (
+    var_tick_gen u_ball_y_tick (
         .clk(clk),
         .rst_n(rst_n),
-        .max_count(speed_tick_max_count),
-        .tick(ball_k_tick)
+        .max_count(tick_max_count),
+        .tick(ball_y_tick)
     );
 
-  reg game_over;
-  wire hit = video_active && inside_circle && inside_triangle;
+    fixed_tick_gen #(
+      .MAX_COUNT(50_000)
+    ) u_obstacle_tick (
+        .clk(clk),
+        .rst_n(rst_n),
+        .tick(obs_tick)
+    );
 
-  always @(posedge clk or negedge rst_n) begin
-    if (!rst_n)
-        game_over <= 1'b0;
-    else if (hit)
-        game_over <= 1'b1;
-  end
+    // game over logic -------------------------------------------------------------------------
+    reg game_over;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            game_over <= 1'b0;
+        else if (video_active && inside_circle && inside_triangle)
+            game_over <= 1'b1;
+    end
+
+    // game parameters ---------------------------------------------------------------------------
+    localparam BALL_X = 100;
+    localparam BALL_R = 30;
+    localparam GROUND_Y = 400;
+    
+    localparam OBSTACLE_WIDTH = 380;
+    localparam OBSTACLE_SPEED = 15;
 
     // ball jump logic ----------------------------------------------------------------------------
-    localparam BALL_H = 100;
-    localparam BALL_R = 30;
-    localparam BALL_K_BOTTOM = 400;
-
     localparam signed [9:0] BALL_INITIAL_SPEED = -85;
     
-    reg [9:0] ball_k;
+    reg [9:0] ball_y;
     reg signed [9:0] ball_speed;
     
-    wire [9:0] ball_speed_abs;
-
-    assign ball_speed_abs = ball_speed[9] ? (~ball_speed+1) : ball_speed;
-
+    wire [9:0] ball_speed_abs = ball_speed[9] ? (~ball_speed+1) : ball_speed;
     wire [9:0] safe_speed = (ball_speed_abs==0) ? 1 : ball_speed_abs;
 
-    assign speed_tick_max_count = (ball_speed_abs == 0)
-        ? SPEED_TICK_MAX_COUNT
-        : (SPEED_TICK_MAX_COUNT / safe_speed);
-
-  always @(posedge clk or negedge rst_n) begin
-      if (!rst_n)
-          ball_speed <= 0;
-      else if (game_over)  ball_speed <= ball_speed;
-      else if (jmp_in && ball_k == BALL_K_BOTTOM && ball_speed == 0)
-          ball_speed <= BALL_INITIAL_SPEED;
-      else if (speed_tick) begin
-          if (ball_k >= BALL_K_BOTTOM && ball_speed >= 0)
-              ball_speed <= 0;
-          else
-              ball_speed <= ball_speed + 20;
-      end
-  end
+    assign tick_max_count = (ball_speed_abs == 0) ? TICK_MAX_COUNT : (TICK_MAX_COUNT / safe_speed);
 
     always @(posedge clk or negedge rst_n) begin
-    if (!rst_n)
-        ball_k <= BALL_K_BOTTOM;
-    else if (game_over)  ball_k <= ball_k;
-    else if (ball_k_tick) begin
-        if (ball_speed==0)
-            ball_k <= ball_k;
-        else if (ball_k >= BALL_K_BOTTOM && ball_speed > 0)
-            ball_k <= BALL_K_BOTTOM;
-        else if (ball_speed < 0)
-            ball_k <= ball_k-1;
-        else
-            ball_k <= ball_k+1;
+        if (!rst_n)
+            ball_speed <= 0;
+        else if (game_over)  
+            ball_speed <= ball_speed;
+        else if (jmp_in && ball_y == GROUND_Y && ball_speed == 0)
+            ball_speed <= BALL_INITIAL_SPEED;
+        else if (tick) begin
+            if (ball_y >= GROUND_Y && ball_speed >= 0)
+                ball_speed <= 0;
+            else
+                ball_speed <= ball_speed + 20;
+        end
     end
-end
 
-    // display logic -------------------------------------------------------------------------------
-    wire inside_circle = ((x-BALL_H)*(x-BALL_H) + (y-ball_k+BALL_R)*(y-ball_k+BALL_R)) <= BALL_R*BALL_R;
-
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            ball_y <= GROUND_Y;
+        else if (game_over)
+            ball_y <= ball_y;
+        else if (ball_y_tick) begin
+            if (ball_speed==0)
+                ball_y <= ball_y;
+            else if (ball_y >= GROUND_Y && ball_speed > 0)
+                ball_y <= GROUND_Y;
+            else if (ball_speed < 0)
+                ball_y <= ball_y-1;
+            else
+                ball_y <= ball_y+1;
+        end
+    end
     
-localparam OBSTACLE_Y     = 320;
-localparam OBSTACLE_WIDTH = 30;
+    // obstacle logic -------------------------------------------------------------------------------
+    reg [9:0] obstacle_x;
 
-wire frame_tick = (x == 10'd0) && (y == 10'd480);
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            obstacle_x <= 10'd665;
+        else if (obs_tick && !game_over) begin
+            obstacle_x <= obstacle_x-1;
+        end
+    end
+    
+    // display logic -------------------------------------------------------------------------------
+    wire inside_circle = ((x-BALL_X)*(x-BALL_X) + (y-ball_y+BALL_R)*(y-ball_y+BALL_R)) <= BALL_R*BALL_R;
 
-localparam OBSTACLE_SPEED = 15;
-
-reg [9:0] OBSTACLE_X;
-
-//obstical colision 
-//wire colison = (OBSTACLE_X == x) && (OBSTACLE_Y == y);
-
-always @(posedge clk or negedge rst_n) begin
-  if (!rst_n)
-    OBSTACLE_X <= 10'd665;
-  else if (frame_tick && !game_over) begin
-    if ((OBSTACLE_X <= OBSTACLE_SPEED)&&(obstical_tick))
-      OBSTACLE_X <= 10'd665;
-    else
-      OBSTACLE_X <= OBSTACLE_X - OBSTACLE_SPEED;
-  end
-end
-
-
-// Distance below the triangle's top point.
-wire [10:0] obstacle_dy =
-    (y >= OBSTACLE_Y) ? (y - OBSTACLE_Y) : 0;
-
-// Half-width grows linearly from 0 at the top
-// to OBSTACLE_WIDTH/2 at BALL_K_BOTTOM.
-wire [10:0] obstacle_half_width =
-    (OBSTACLE_WIDTH * obstacle_dy) /
-    (2 * (BALL_K_BOTTOM - OBSTACLE_Y));
-
-wire inside_triangle =
-    (y >= OBSTACLE_Y) &&
-    (y <= BALL_K_BOTTOM) &&
-    (x >= OBSTACLE_X - obstacle_half_width) &&
-    (x <= OBSTACLE_X + obstacle_half_width);
+    wire inside_triangle = (x+y>obstacle_x+OBSTACLE_WIDTH) && (x+OBSTACLE_WIDTH<obstacle_x+y);
 
     always @(*) begin
         {R, G, B} = 6'b0;
         if(video_active) begin
-          if(inside_triangle)
-              {R, G, B} = 6'b101010;
-          if(y>BALL_K_BOTTOM)
-              {R, G, B} =  6'b010100;
-          if(inside_circle)
-              {R, G, B} = 6'b111000;
-         
+            if(inside_triangle)
+                {R, G, B} = 6'b101010;
+            if(y>GROUND_Y)
+                {R, G, B} =  6'b010100;
+            if(inside_circle)
+                {R, G, B} = 6'b111000;
         end     
     end
+
 endmodule
