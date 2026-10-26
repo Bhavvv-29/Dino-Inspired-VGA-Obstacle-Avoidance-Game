@@ -103,7 +103,6 @@ module tt_um_dino(
 
     // game parameters ---------------------------------------------------------------------------
     localparam BALL_X = 100;
-    localparam BALL_R = 30;
     localparam GROUND_Y = 400;
     
     localparam OBSTACLE_WIDTH = 380;
@@ -118,7 +117,7 @@ module tt_um_dino(
     wire [9:0] ball_speed_abs = ball_speed[9] ? (~ball_speed+1) : ball_speed;
     wire [9:0] safe_speed = (ball_speed_abs==0) ? 1 : ball_speed_abs;
 
-    assign tick_max_count = (ball_speed_abs == 0) ? TICK_MAX_COUNT : (TICK_MAX_COUNT);
+    assign tick_max_count = (ball_speed_abs == 0) ? TICK_MAX_COUNT : (TICK_MAX_COUNT / safe_speed);
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
@@ -163,9 +162,18 @@ module tt_um_dino(
         end
     end
     
+    // circle lut ---------------------------------------------------------------------------------
+    wire inside_circle;
+    
+    circle_lut #(
+        .BALL_X(100)
+    ) u_circle_lut (
+        .x(x),
+        .y(y),
+        .ball_y(ball_y),
+        .inside_circle(inside_circle)
+    );
     // display logic -------------------------------------------------------------------------------
-    wire inside_circle = 0; //((x-BALL_X)*(x-BALL_X) + (y-ball_y+BALL_R)*(y-ball_y+BALL_R)) <= BALL_R*BALL_R;
-
     wire inside_triangle = (x+y>obstacle_x+OBSTACLE_WIDTH) && (x+OBSTACLE_WIDTH<obstacle_x+y);
 
     always @(*) begin
