@@ -164,7 +164,7 @@ module tt_um_dino(
     end
     
     // display logic -------------------------------------------------------------------------------
-    wire inside_circle = ((x-BALL_X)*(x-BALL_X) + (y-ball_y+BALL_R)*(y-ball_y+BALL_R)) <= BALL_R*BALL_R;
+    wire inside_circle = 0; //((x-BALL_X)*(x-BALL_X) + (y-ball_y+BALL_R)*(y-ball_y+BALL_R)) <= BALL_R*BALL_R;
 
     wire inside_triangle = (x+y>obstacle_x+OBSTACLE_WIDTH) && (x+OBSTACLE_WIDTH<obstacle_x+y);
 
