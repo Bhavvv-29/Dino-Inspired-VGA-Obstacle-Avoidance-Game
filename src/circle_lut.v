@@ -7,7 +7,7 @@ module circle_lut #(
     localparam BALL_R = 30;
 
     wire [10:0] diff_x = x-BALL_X;
-    wire [10:0] diff_y = y-ball_y;
+    wire [10:0] diff_y = y-ball_y+BALL_R;
 
     wire [9:0] dx = diff_x[9:0]^{10{diff_x[10]}};
     wire [9:0] dy = diff_y[9:0]^{10{diff_y[10]}};

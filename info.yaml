@@ -19,7 +19,7 @@ project:
     - "tt_um_dino.v"
     - "hvsync_generator.v"
     - "fixed_tick_gen.v"
-    - "var_tick_gen.v"
+    - "ball_tick_gen.v"
     - "LFSR.v"
     - "dff.v"
     - "circle_lut.v"
