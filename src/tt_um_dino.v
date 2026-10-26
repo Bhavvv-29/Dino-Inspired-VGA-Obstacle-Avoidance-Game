@@ -118,7 +118,7 @@ module tt_um_dino(
     wire [9:0] ball_speed_abs = ball_speed[9] ? (~ball_speed+1) : ball_speed;
     wire [9:0] safe_speed = (ball_speed_abs==0) ? 1 : ball_speed_abs;
 
-    //assign tick_max_count = (ball_speed_abs == 0) ? TICK_MAX_COUNT : (TICK_MAX_COUNT / safe_speed);
+    assign tick_max_count = (ball_speed_abs == 0) ? TICK_MAX_COUNT : (TICK_MAX_COUNT);
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
