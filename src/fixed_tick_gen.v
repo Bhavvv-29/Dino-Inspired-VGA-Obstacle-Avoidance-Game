@@ -1,5 +1,5 @@
 module fixed_tick_gen (
-    input clk, rst_n,
+    input clk, rst_n, sync,
     output tick, obs_tick
 );  
 
@@ -9,12 +9,14 @@ module fixed_tick_gen (
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             count <= 0;
+        else if(sync)
+            count <= 0;
         else
             count <= count+1;
     end
     
     assign tick = (count=={COUNT_WIDTH{1'b1}});
-    assign obs_tick = (count[COUNT_WIDTH-7:0] == {(COUNT_WIDTH-6){1'b1}});
+    assign obs_tick = (count[COUNT_WIDTH-8:0] == {(COUNT_WIDTH-7){1'b1}});
 endmodule
 
             

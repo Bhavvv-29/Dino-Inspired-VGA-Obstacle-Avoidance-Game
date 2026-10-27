@@ -56,10 +56,12 @@ module tt_um_dino(
 
     // tick generator ---------------------------------------------------------------------------
     wire tick, ball_tick, obs_tick;
-    
+    wire tick_sync;
+
     fixed_tick_gen u_tick (
         .clk(clk),
         .rst_n(rst_n),
+        .sync(tick_sync),
         .tick(tick),
         .obs_tick(obs_tick)
     );
@@ -82,7 +84,7 @@ module tt_um_dino(
 
     // game parameters ---------------------------------------------------------------------------
     localparam BALL_X = 100;
-    localparam signed BALL_INITIAL_SPEED = -17;
+    localparam signed BALL_INITIAL_SPEED = -5;
 
     localparam GROUND_Y = 400;
     
@@ -108,6 +110,8 @@ module tt_um_dino(
                 ball_speed <= ball_speed + 5;
         end
     end
+    
+    assign tick_sync = jmp_in && ball_y == GROUND_Y && ball_speed == 0;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
@@ -125,12 +129,13 @@ module tt_um_dino(
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
-            obstacle_x <= 10'd665;
+            obstacle_x <= 10'd1023;
         else if (obs_tick && !game_over) begin
-            obstacle_x <= (obstacle_x==10'd0) ? 10'd665 : obstacle_x-1;
+            obstacle_x <= (obstacle_x==10'd0) ? 10'd500 + rnd[10:2] : obstacle_x-1;
         end
     end
     
+
     // circle lut ---------------------------------------------------------------------------------
     wire inside_circle;
     
@@ -171,28 +176,36 @@ module tt_um_dino(
     );
     
     // random generation ---------------------------------------------------------------------------
-    wire [5:0] rnd;
+    wire [15:0] rnd;
 
-    LFSR #(.N(6), .TAPS(6'b011001), .SEED(6'b100110)) u_lfsr (
+    LFSR #(.N(16)) u_lfsr (
         .clk(clk),
         .rst_n(rst_n), 
-        .next(obstacle_x==0),
         .q(rnd)
     );
 
+    reg [1:0] cluster_size;
+
+    always @(posedge clk or negedge rst_n) begin
+        if(!rst_n) 
+          cluster_size <= 2'b00;
+        else if(obstacle_x==0)
+          cluster_size <= rnd[1:0];
+    end
+    
     // display logic -------------------------------------------------------------------------------
     wire [10:0] x_scaled = x*TRIANGLE_SLOPE;
     
     reg [10:0] obs_x_scaled;
     reg inside_triangle;
     
-    reg [1:0] i;
+    reg [2:0] i;
     always @(*) begin
         inside_triangle = 1'b0;
         obs_x_scaled = obstacle_x*TRIANGLE_SLOPE; 
 
         for (i=0; i<4; i=i+1) begin
-            if (i <= rnd[1:0]) begin
+            if (i <= {1'b0, cluster_size}) begin
                 obs_x_scaled = (obstacle_x - i*32)*TRIANGLE_SLOPE;
 
                 if ((x_scaled+y > obs_x_scaled+OBSTACLE_Y) && (x_scaled+OBSTACLE_Y < obs_x_scaled+y))
