@@ -65,11 +65,11 @@ module tt_um_dino(
     );
 
     ball_tick_gen u_ball_tick (
-    .clk(clk),
-    .rst_n(rst_n),
-    .ball_speed(ball_speed_abs),
-    .ball_tick(ball_tick)
-);
+        .clk(clk),
+        .rst_n(rst_n),
+        .ball_speed(ball_speed_abs),
+        .ball_tick(ball_tick)
+    );
 
     // game over logic -------------------------------------------------------------------------
     reg game_over;
@@ -86,8 +86,9 @@ module tt_um_dino(
 
     localparam GROUND_Y = 400;
     
-    localparam OBSTACLE_WIDTH = 380;
+    localparam OBSTACLE_Y = 380;
     localparam OBSTACLE_SPEED = 15;
+    localparam TRIANGLE_SLOPE = 2;
 
     // ball jump logic ----------------------------------------------------------------------------
     
@@ -126,7 +127,7 @@ module tt_um_dino(
         if (!rst_n)
             obstacle_x <= 10'd665;
         else if (obs_tick && !game_over) begin
-            obstacle_x <= obstacle_x-3;
+            obstacle_x <= (obstacle_x==10'd0) ? 10'd665 : obstacle_x-1;
         end
     end
     
@@ -141,19 +142,77 @@ module tt_um_dino(
         .ball_y(ball_y),
         .inside_circle(inside_circle)
     );
+
+    // scoreboard ---------------------------------------------------------------------------------
+    wire score_inc = obs_tick && !game_over && obstacle_x==BALL_X-80;
+
+    reg [3:0] score_ones, score_tens;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            score_ones <= 0;
+            score_tens <= 0;
+        end else if (score_inc) begin
+            if (score_ones == 9) begin
+                score_ones <= 0;
+                score_tens <= (score_tens == 9) ? 4'd0 : score_tens + 1'b1;
+            end else begin
+                score_ones <= score_ones + 1'b1;
+            end
+        end
+    end
+    
+    wire score_pixel;
+
+    score_display u_score (
+        .x(x), .y(y),
+        .tens(score_tens), .ones(score_ones),
+        .pixel(score_pixel)
+    );
+    
+    // random generation ---------------------------------------------------------------------------
+    wire [5:0] rnd;
+
+    LFSR #(.N(6), .TAPS(6'b011001), .SEED(6'b100110)) u_lfsr (
+        .clk(clk),
+        .rst_n(rst_n), 
+        .next(obstacle_x==0),
+        .q(rnd)
+    );
+
     // display logic -------------------------------------------------------------------------------
-    wire inside_triangle = (x+y>obstacle_x+OBSTACLE_WIDTH) && (x+OBSTACLE_WIDTH<obstacle_x+y);
+    wire [10:0] x_scaled = x*TRIANGLE_SLOPE;
+    
+    reg [10:0] obs_x_scaled;
+    reg inside_triangle;
+    
+    reg [1:0] i;
+    always @(*) begin
+        inside_triangle = 1'b0;
+        obs_x_scaled = obstacle_x*TRIANGLE_SLOPE; 
+
+        for (i=0; i<4; i=i+1) begin
+            if (i <= rnd[1:0]) begin
+                obs_x_scaled = (obstacle_x - i*32)*TRIANGLE_SLOPE;
+
+                if ((x_scaled+y > obs_x_scaled+OBSTACLE_Y) && (x_scaled+OBSTACLE_Y < obs_x_scaled+y))
+                    inside_triangle = 1'b1;
+            end
+        end
+    end
 
     always @(*) begin
         {R, G, B} = 6'b0;
         if(video_active) begin
-            if(inside_triangle)
-                {R, G, B} = 6'b101010;
-            if(y>GROUND_Y)
-                {R, G, B} =  6'b010100;
             if(inside_circle)
                 {R, G, B} = 6'b111000;
-        end     
+            else if(score_pixel)
+                {R, G, B} = 6'b111111;
+            else if(y>GROUND_Y)
+                {R, G, B} = 6'b010100;
+            else if(inside_triangle)
+                {R, G, B} = 6'b101010;
+        end
     end
 
 endmodule

@@ -12,9 +12,9 @@ module fixed_tick_gen (
         else
             count <= count+1;
     end
-
+    
     assign tick = (count=={COUNT_WIDTH{1'b1}});
-    assign obs_tick = (count[COUNT_WIDTH-5:0] == {(COUNT_WIDTH-4){1'b1}});
+    assign obs_tick = (count[COUNT_WIDTH-7:0] == {(COUNT_WIDTH-6){1'b1}});
 endmodule
 
             
