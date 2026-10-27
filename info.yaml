@@ -22,6 +22,7 @@ project:
     - "ball_tick_gen.v"
     - "LFSR.v"
     - "circle_lut.v"
+    - "score_display.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 pinout:
