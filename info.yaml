@@ -18,8 +18,8 @@ project:
   source_files:
     - "tt_um_dino.v"
     - "hvsync_generator.v"
-    - "fixed_tick_gen.v"
-    - "ball_tick_gen.v"
+    - "tick_gen.v"
+    - "ball_controller.v"
     - "LFSR.v"
     - "circle_lut.v"
     - "score_display.v"
