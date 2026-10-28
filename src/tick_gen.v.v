@@ -1,6 +1,6 @@
-module fixed_tick_gen (
+module tick_gen (
     input clk, rst_n, sync,
-    output tick, obs_tick
+    output ball_tick, obs_tick
 );  
 
     localparam COUNT_WIDTH = 21;
@@ -15,7 +15,7 @@ module fixed_tick_gen (
             count <= count+1;
     end
     
-    assign tick = (count=={COUNT_WIDTH{1'b1}});
+    assign ball_tick = (count=={COUNT_WIDTH{1'b1}});
     assign obs_tick = (count[COUNT_WIDTH-8:0] == {(COUNT_WIDTH-7){1'b1}});
 endmodule
 

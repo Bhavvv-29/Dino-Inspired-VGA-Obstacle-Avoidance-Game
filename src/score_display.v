@@ -1,18 +1,25 @@
 module score_display (
     input  wire [9:0] x, y,
-    input  wire [3:0] tens, ones,
+    input  wire [3:0] thousands, hundreds, tens, ones,
     output wire       pixel
 );
-    localparam X0 = 540, Y0 = 20;   // top-right corner
+    localparam X0 = 480, Y0 = 20;   // top-left of the 4-digit block
     localparam W = 20, H = 36, T = 4, GAP = 10;
 
-    wire in_tens = (x >= X0)         && (x < X0 + W);
-    wire in_ones = (x >= X0+W+GAP)   && (x < X0 + 2*W + GAP);
-    wire in_y    = (y >= Y0)         && (y < Y0 + H);
+    wire in_th = (x >= X0)           && (x < X0 + W);
+    wire in_h  = (x >= X0+(W+GAP))   && (x < X0 + 2*W + GAP);
+    wire in_t  = (x >= X0+2*(W+GAP)) && (x < X0 + 3*W + 2*GAP);
+    wire in_o  = (x >= X0+3*(W+GAP)) && (x < X0 + 4*W + 3*GAP);
+    wire in_y  = (y >= Y0)           && (y < Y0 + H);
 
-    wire [9:0] lx = in_tens ? (x - X0) : (x - (X0 + W + GAP));
+    wire [9:0] lx = in_th ? (x - X0) :
+                    in_h  ? (x - (X0 + (W + GAP))) :
+                    in_t  ? (x - (X0 + 2*(W + GAP))) :
+                            (x - (X0 + 3*(W + GAP)));
     wire [9:0] ly = y - Y0;
-    wire [3:0] digit = in_tens ? tens : ones;
+    wire [3:0] digit = in_th ? thousands :
+                       in_h  ? hundreds  :
+                       in_t  ? tens      : ones;
 
     // segments {a,b,c,d,e,f,g}
     reg [6:0] seg;
@@ -40,13 +47,7 @@ module score_display (
     wire left = lx < T;
     wire rght = lx >= W - T;
 
-    wire [6:0] hit = { top,        // a
-                       rght & up,  // b
-                       rght & lo,  // c
-                       bot,        // d
-                       left & lo,  // e
-                       left & up,  // f
-                       mid };      // g
+    wire [6:0] hit = { top, rght & up, rght & lo, bot, left & lo, left & up, mid };
 
-    assign pixel = in_y && (in_tens || in_ones) && |(seg & hit);
+    assign pixel = in_y && (in_th || in_h || in_t || in_o) && |(seg & hit);
 endmodule

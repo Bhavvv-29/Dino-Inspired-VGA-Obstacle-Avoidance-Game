@@ -34,8 +34,14 @@ module tt_um_dino(
     .vpos(y)
     );
 
+    reg game_over;
 
-    // edge detector
+    // game parameters ---------------------------------------------------------------------------
+    localparam BALL_X = 100;
+    localparam GROUND_Y = 400;
+    localparam OBSTACLE_HEIGHT = 23;
+
+    // edge detector ----------------------------------------------------------------------------
     wire jmp_in;
     reg jmp_in_reg;
 
@@ -48,82 +54,29 @@ module tt_um_dino(
 
     assign jmp_in = (ui_in[0]!=jmp_in_reg);
 
-    // ball speed -------------------------------------------------------------------------------
-    reg signed [9:0] ball_speed;
-
-    wire [9:0] ball_speed_abs = ball_speed[9] ? -ball_speed : ball_speed;
-    wire ball_dir = ball_speed[9]; 
-
     // tick generator ---------------------------------------------------------------------------
-    wire tick, ball_tick, obs_tick;
-    wire tick_sync;
+    wire ball_tick, obs_tick;
 
-    fixed_tick_gen u_tick (
+    tick_gen u_tick_gen (
         .clk(clk),
         .rst_n(rst_n),
-        .sync(tick_sync),
-        .tick(tick),
+        .sync(jmp_in && ball_y==GROUND_Y),
+        .ball_tick(ball_tick),
         .obs_tick(obs_tick)
     );
 
-    ball_tick_gen u_ball_tick (
+    // ball speed controller -------------------------------------------------------------------
+    wire [9:0] ball_y;
+
+    ball_controller #(.GROUND_Y(GROUND_Y)) u_bsc (
         .clk(clk),
         .rst_n(rst_n),
-        .ball_speed(ball_speed_abs),
-        .ball_tick(ball_tick)
+        .tick(ball_tick),
+        .stop(game_over),
+        .jmp_in(jmp_in),
+        .ball_y(ball_y)
     );
 
-    // game over logic -------------------------------------------------------------------------
-    reg game_over;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            game_over <= 1'b0;
-        else if (video_active && inside_circle && inside_triangle)
-            game_over <= 1'b1;
-    end
-
-    // game parameters ---------------------------------------------------------------------------
-    localparam BALL_X = 100;
-    localparam signed BALL_INITIAL_SPEED = -5;
-
-    localparam GROUND_Y = 400;
-    
-    localparam OBSTACLE_Y = 380;
-    localparam OBSTACLE_SPEED = 15;
-    localparam TRIANGLE_SLOPE = 2;
-
-    // ball jump logic ----------------------------------------------------------------------------
-    
-    reg [9:0] ball_y;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            ball_speed <= 0;
-        else if (game_over)  
-            ball_speed <= ball_speed;
-        else if (jmp_in && ball_y == GROUND_Y && ball_speed == 0)
-            ball_speed <= BALL_INITIAL_SPEED;
-        else if (tick) begin
-            if (ball_y >= GROUND_Y && ball_speed >= 0)
-                ball_speed <= 0;
-            else
-                ball_speed <= ball_speed + 5;
-        end
-    end
-    
-    assign tick_sync = jmp_in && ball_y == GROUND_Y && ball_speed == 0;
-
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            ball_y <= GROUND_Y;
-        else if (ball_tick && !game_over) begin
-            if (ball_y >= GROUND_Y && ball_speed > 0)
-                ball_y <= GROUND_Y;
-            else if(ball_speed_abs!=0)
-                ball_y <= ball_dir ? ball_y-1 : ball_y+1;
-        end
-    end
-    
     // obstacle logic -------------------------------------------------------------------------------
     reg [9:0] obstacle_x;
 
@@ -135,9 +88,8 @@ module tt_um_dino(
         end
     end
     
-
     // circle lut ---------------------------------------------------------------------------------
-    wire inside_circle;
+    wire ball_pixel;
     
     circle_lut #(
         .BALL_X(BALL_X)
@@ -145,36 +97,48 @@ module tt_um_dino(
         .x(x),
         .y(y),
         .ball_y(ball_y),
-        .inside_circle(inside_circle)
+        .inside_circle(ball_pixel)
     );
 
     // scoreboard ---------------------------------------------------------------------------------
-    wire score_inc = obs_tick && !game_over && obstacle_x==BALL_X-80;
+   wire score_inc = obs_tick && !game_over && obstacle_x==BALL_X-80;
+    reg [3:0] score_ones, score_tens, score_hundreds, score_thousands;
 
-    reg [3:0] score_ones, score_tens;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            score_ones <= 0;
-            score_tens <= 0;
+            score_ones      <= 0;
+            score_tens      <= 0;
+            score_hundreds  <= 0;
+            score_thousands <= 0;
         end else if (score_inc) begin
             if (score_ones == 9) begin
                 score_ones <= 0;
-                score_tens <= (score_tens == 9) ? 4'd0 : score_tens + 1'b1;
+                if (score_tens == 9) begin
+                    score_tens <= 0;
+                    if (score_hundreds == 9) begin
+                        score_hundreds  <= 0;
+                        score_thousands <= (score_thousands == 9) ? 4'd0 : score_thousands + 1'b1;
+                    end else begin
+                        score_hundreds <= score_hundreds + 1'b1;
+                    end
+                end else begin
+                    score_tens <= score_tens + 1'b1;
+                end
             end else begin
                 score_ones <= score_ones + 1'b1;
             end
         end
     end
-    
+ 
     wire score_pixel;
 
-    score_display u_score (
-        .x(x), .y(y),
-        .tens(score_tens), .ones(score_ones),
+   score_display u_score (
+        .x(x), .y(y),.thousands(score_thousands),
+        .hundreds(score_hundreds), .tens(score_tens), .ones(score_ones),
         .pixel(score_pixel)
-    );
-    
+   ); 
+
     // random generation ---------------------------------------------------------------------------
     wire [15:0] rnd;
 
@@ -194,38 +158,51 @@ module tt_um_dino(
     end
     
     // display logic -------------------------------------------------------------------------------
-    wire [10:0] x_scaled = x*TRIANGLE_SLOPE;
+    wire [10:0] x_scaled = x*2;
     
     reg [10:0] obs_x_scaled;
-    reg inside_triangle;
+    reg obstacle_pixel;
     
     reg [2:0] i;
     always @(*) begin
-        inside_triangle = 1'b0;
-        obs_x_scaled = obstacle_x*TRIANGLE_SLOPE; 
+        obstacle_pixel = 1'b0;
+        obs_x_scaled = obstacle_x*2; 
 
         for (i=0; i<4; i=i+1) begin
             if (i <= {1'b0, cluster_size}) begin
-                obs_x_scaled = (obstacle_x - i*32)*TRIANGLE_SLOPE;
+                obs_x_scaled = (obstacle_x - i*32)*2;
 
-                if ((x_scaled+y > obs_x_scaled+OBSTACLE_Y) && (x_scaled+OBSTACLE_Y < obs_x_scaled+y))
-                    inside_triangle = 1'b1;
+                if ((x_scaled+y > obs_x_scaled+GROUND_Y-OBSTACLE_HEIGHT) && (x_scaled+GROUND_Y-OBSTACLE_HEIGHT < obs_x_scaled+y))
+                    obstacle_pixel = 1'b1;
             end
         end
     end
 
+    wire score_bg = x>450 && y<75;
+
     always @(*) begin
         {R, G, B} = 6'b0;
         if(video_active) begin
-            if(inside_circle)
-                {R, G, B} = 6'b111000;
+            if(ball_pixel)
+                {R, G, B} = 6'b100000;
             else if(score_pixel)
-                {R, G, B} = 6'b111111;
+                {R, G, B} = 6'b000000;
+            else if(score_bg) 
+                {R, G, B} = 6'b101000;
             else if(y>GROUND_Y)
                 {R, G, B} = 6'b010100;
-            else if(inside_triangle)
+            else if(obstacle_pixel)
                 {R, G, B} = 6'b101010;
         end
     end
+
+    // game over logic -------------------------------------------------------------------------
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            game_over <= 1'b0;
+        else if (video_active && ball_pixel && obstacle_pixel)
+            game_over <= 1'b1;
+    end
+    
 
 endmodule
