@@ -39,7 +39,10 @@ module tt_um_dino(
     // game parameters ---------------------------------------------------------------------------
     localparam BALL_X = 100;
     localparam GROUND_Y = 400;
+    localparam GRAVITY_SCALE = 2000;
+
     localparam OBSTACLE_HEIGHT = 23;
+    localparam OBSTACLE_SPEED = 7;
 
     // edge detector ----------------------------------------------------------------------------
     wire jmp_in;
@@ -57,18 +60,23 @@ module tt_um_dino(
     // tick generator ---------------------------------------------------------------------------
     wire ball_tick, obs_tick;
 
-    tick_gen u_tick_gen (
+    tick_gen #(
+        .OBSTACLE_SPEED(OBSTACLE_SPEED)
+    ) u_tick_gen (
         .clk(clk),
         .rst_n(rst_n),
         .sync(jmp_in && ball_y==GROUND_Y),
-        .ball_tick(ball_tick),
+        .ball_tick(ball_tick),u_tick_gen 
         .obs_tick(obs_tick)
     );
 
     // ball speed controller -------------------------------------------------------------------
     wire [9:0] ball_y;
 
-    ball_controller #(.GROUND_Y(GROUND_Y)) u_bsc (
+    ball_controller #(
+        .GROUND_Y(GROUND_Y),
+        .GRAVITY_SCALE(GRAVITY_SCALE)
+    ) u_bsc (
         .clk(clk),
         .rst_n(rst_n),
         .tick(ball_tick),

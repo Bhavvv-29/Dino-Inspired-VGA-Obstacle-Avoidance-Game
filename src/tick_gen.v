@@ -1,4 +1,6 @@
-module tick_gen (
+module tick_gen #(
+    OBSTACLE_SPEED=7
+)(
     input clk, rst_n, sync,
     output ball_tick, obs_tick
 );  
@@ -16,7 +18,7 @@ module tick_gen (
     end
     
     assign ball_tick = (count=={COUNT_WIDTH{1'b1}});
-    assign obs_tick = (count[COUNT_WIDTH-8:0] == {(COUNT_WIDTH-7){1'b1}});
+    assign obs_tick = (count[COUNT_WIDTH-OBSTACLE_SPEED:0] == {(COUNT_WIDTH-OBSTACLE_SPEED+1){1'b1}});
 endmodule
 
             
