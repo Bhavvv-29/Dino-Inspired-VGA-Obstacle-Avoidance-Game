@@ -66,7 +66,7 @@ module tt_um_dino(
         .clk(clk),
         .rst_n(rst_n),
         .sync(jmp_in && ball_y==GROUND_Y),
-        .ball_tick(ball_tick),u_tick_gen 
+        .ball_tick(ball_tick),
         .obs_tick(obs_tick)
     );
 

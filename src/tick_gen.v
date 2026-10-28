@@ -1,5 +1,5 @@
 module tick_gen #(
-    OBSTACLE_SPEED=7
+    parameter OBSTACLE_SPEED=7
 )(
     input clk, rst_n, sync,
     output ball_tick, obs_tick
