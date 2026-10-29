@@ -96,10 +96,10 @@ module tt_um_dino(
             obstacle_2_valid <= 1'b0;
             end
         else if (obs_tick && !game_over) begin
-            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? 10'd760 + rnd[9:2] : obstacle_x[0]-1;
-                if(obstacle_x[0] == 10'd400)begin
+            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? 10'd896 + rnd[8:2] : obstacle_x[0]-1;
+                if(obstacle_x[0] == 10'd511)begin
                     obstacle_2_valid <= 1;
-                    obstacle_x[1] <= 10'd760 + rnd[9:2];
+                    obstacle_x[1] <= 10'd896 + rnd[8:2];
                 end
                 if(obstacle_x[1] == 0)
                     obstacle_2_valid <= 0;
