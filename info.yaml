@@ -27,7 +27,7 @@ project:
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 pinout:
   # Inputs
-  ui[0]: "db_in"
+  ui[0]: "jmp_in"
   ui[1]: ""
   ui[2]: ""
   ui[3]: ""
