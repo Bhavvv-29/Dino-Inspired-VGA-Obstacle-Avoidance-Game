@@ -12,11 +12,13 @@ module score_display (
     wire in_o  = (x >= X0+3*(W+GAP)) && (x < X0 + 4*W + 3*GAP);
     wire in_y  = (y >= Y0)           && (y < Y0 + H);
 
-    wire [9:0] lx = in_th ? (x - X0) :
-                    in_h  ? (x - (X0 + (W + GAP))) :
-                    in_t  ? (x - (X0 + 2*(W + GAP))) :
-                            (x - (X0 + 3*(W + GAP)));
-    wire [9:0] ly = y - Y0;
+    // local coordinates only matter inside a digit box (< 20 x < 36),
+    // and 'pixel' is gated by in_*, so 5 / 6 bits are enough
+    wire [4:0] lx = in_th ? (x[4:0] - X0[4:0]) :
+                    in_h  ? (x[4:0] - (X0 + (W + GAP))) :
+                    in_t  ? (x[4:0] - (X0 + 2*(W + GAP))) :
+                            (x[4:0] - (X0 + 3*(W + GAP)));
+    wire [5:0] ly = y[5:0] - Y0[5:0];
     wire [3:0] digit = in_th ? thousands :
                        in_h  ? hundreds  :
                        in_t  ? tens      : ones;

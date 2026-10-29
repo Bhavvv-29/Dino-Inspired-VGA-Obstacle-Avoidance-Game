@@ -12,11 +12,10 @@ module tt_um_dino(
 
     // VGA signals
     wire hsync, vsync;
-    //wire video_active;
     wire [9:0] x, y;
 
     reg [1:0] R, G, B;
-    
+
     // TinyVGA PMOD
     assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
 
@@ -47,6 +46,10 @@ module tt_um_dino(
     localparam OBSTACLE_HEIGHT = 23;
     localparam OBSTACLE_SPEED = 6;
 
+    // signals declared before first use
+    wire [9:0]  ball_y;
+    wire [15:0] rnd;
+
     // edge detector ----------------------------------------------------------------------------
     wire jmp_in;
     reg jmp_in_reg;
@@ -59,7 +62,8 @@ module tt_um_dino(
     end
 
     assign jmp_in = (ui_in[0]!=jmp_in_reg);  // only for vga playground
-    // assign jmp_in = (ui_in[0] && !jmp_in_reg);  
+    // assign jmp_in = (ui_in[0] && !jmp_in_reg);
+
     // tick generator ---------------------------------------------------------------------------
     wire ball_tick, obs_tick;
 
@@ -74,8 +78,6 @@ module tt_um_dino(
     );
 
     // ball speed controller -------------------------------------------------------------------
-    wire [9:0] ball_y;
-
     ball_controller #(
         .GROUND_Y(GROUND_Y),
         .GRAVITY_SCALE(GRAVITY_SCALE)
@@ -102,21 +104,22 @@ module tt_um_dino(
             obstacle_x[1] <= 10'd1023;
             obstacle_2_valid <= 1'b0;
         end else if (obs_tick && !game_over) begin
-            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? 10'd896 + rnd[8:2] : obstacle_x[0]-1;
+            // 896 + rnd[8:2] == {3'b111, rnd[8:2]}  (no adder needed)
+            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? {3'b111, rnd[8:2]} : obstacle_x[0]-1'b1;
                 if(obstacle_x[0] == 10'd511)begin
                     obstacle_2_valid <= 1;
-                    obstacle_x[1] <= 10'd896 + rnd[8:2];
+                    obstacle_x[1] <= {3'b111, rnd[8:2]};
                 end
                 if(obstacle_x[1] == 0)
                     obstacle_2_valid <= 0;
                 if(obstacle_2_valid == 1)
-                    obstacle_x[1] <= (obstacle_x[1]==10'd0) ? 10'd1023 : obstacle_x[1]-1;
+                    obstacle_x[1] <= obstacle_x[1]-1'b1;   // 0-1 wraps to 1023 by itself
         end
     end
-    
+
     // circle lut ---------------------------------------------------------------------------------
     wire ball_pixel;
-    
+
     circle_lut #(
         .BALL_X(BALL_X)
     ) u_circle_lut (
@@ -127,9 +130,15 @@ module tt_um_dino(
     );
 
     // scoreboard ---------------------------------------------------------------------------------
-   wire score_inc = obs_tick && !game_over && (obstacle_x[0]==BALL_X-80 | obstacle_x[1]==BALL_X-80);
+    wire score_inc = obs_tick && !game_over && (obstacle_x[0]==BALL_X-80 | obstacle_x[1]==BALL_X-80);
     reg [3:0] score_ones, score_tens, score_hundreds, score_thousands;
 
+    // digits are always BCD (0..9), so "== 9" is just bit3 & bit0
+    wire ones_9      = score_ones[3]      & score_ones[0];
+    wire tens_9      = score_tens[3]      & score_tens[0];
+    wire hundreds_9  = score_hundreds[3]  & score_hundreds[0];
+    wire thousands_9 = score_thousands[3] & score_thousands[0];
+    wire score_full  = ones_9 & tens_9 & hundreds_9 & thousands_9;   // == 16'h9999
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -143,13 +152,13 @@ module tt_um_dino(
             score_hundreds  <= 0;
             score_thousands <= 0;
         end else if (score_inc) begin
-            if (score_ones == 9) begin
+            if (ones_9) begin
                 score_ones <= 0;
-                if (score_tens == 9) begin
+                if (tens_9) begin
                     score_tens <= 0;
-                    if (score_hundreds == 9) begin
+                    if (hundreds_9) begin
                         score_hundreds  <= 0;
-                        score_thousands <= (score_thousands == 9) ? 4'd0 : score_thousands + 1'b1;
+                        score_thousands <= thousands_9 ? 4'd0 : score_thousands + 1'b1;
                     end else begin
                         score_hundreds <= score_hundreds + 1'b1;
                     end
@@ -161,21 +170,19 @@ module tt_um_dino(
             end
         end
     end
- 
+
     wire score_pixel;
 
-   score_display u_score (
-        .x(x), .y(y),.thousands(score_thousands),
+    score_display u_score (
+        .x(x), .y(y), .thousands(score_thousands),
         .hundreds(score_hundreds), .tens(score_tens), .ones(score_ones),
         .pixel(score_pixel)
-   ); 
+    );
 
     // random generation ---------------------------------------------------------------------------
-    wire [15:0] rnd;
-
     LFSR #(.N(16)) u_lfsr (
         .clk(clk),
-        .rst_n(rst_n), 
+        .rst_n(rst_n),
         .q(rnd)
     );
 
@@ -191,45 +198,49 @@ module tt_um_dino(
         else if(obstacle_x[1]==0)
           cluster_size[1] <= rnd[1:0];
     end
-    
-    // display logic -------------------------------------------------------------------------------
-    wire [10:0] x_scaled = x*2;
-    
-    reg [10:0] obs_x_scaled;
-    reg obstacle_pixel;
-    
-    reg [2:0] i;
-    always @(*) begin
-        obstacle_pixel = 1'b0;
-        obs_x_scaled = obstacle_x[0]*2; 
 
-        for (i=0; i<4; i=i+1) begin
-            if (i <= {1'b0, cluster_size[0]}) begin
-                obs_x_scaled = (obstacle_x[0] - i*32)*2;
+    // obstacle pixels -----------------------------------------------------------------------------
+    // The obstacle is a cluster of up to 4 triangles, 32 px apart. A pixel is inside triangle i when
+    //     |2*(x - ox) + 64*i|  <  y - (GROUND_Y - OBSTACLE_HEIGHT)
+    // The ground (y > GROUND_Y) is drawn on top of obstacles and the ball can never be below the
+    // ground line, so obstacles only matter for y in (377 .. 400]; there the right-hand side is 1..23.
+    // Splitting 2*(x-ox) = hi*64 + lo lets one pair of comparators on 'lo' serve all 4 triangles.
+    localparam [9:0] OBS_TOP = GROUND_Y - OBSTACLE_HEIGHT;           // 377
+    wire        obs_band = (y > OBS_TOP) && (y <= GROUND_Y);
+    wire [5:0]  e   = y[5:0] - OBS_TOP[5:0];                          // 1..23 inside the band
+    wire [5:0]  e_c = 6'd0 - e;                                       // 64 - e
 
-                if ((x_scaled+y > obs_x_scaled+GROUND_Y-OBSTACLE_HEIGHT) && (x_scaled+GROUND_Y-OBSTACLE_HEIGHT < obs_x_scaled+y))
-                    obstacle_pixel = 1'b1;
-            end
-        end
-    end
-    
-    reg [10:0] obs_x_scaled_1;
-    reg obstacle_pixel_1;
-    
-    reg [2:0] j;
-    always @(*) begin
-        obstacle_pixel_1 = 1'b0;
-        obs_x_scaled_1 = obstacle_x[1]*2; 
+    wire [10:0] dx0 = {1'b0, x} - {1'b0, obstacle_x[0]};
+    wire [10:0] dx1 = {1'b0, x} - {1'b0, obstacle_x[1]};
 
-        for (j=0; j<4; j=j+1) begin
-            if (j <= {1'b0, cluster_size[1]}) begin
-                obs_x_scaled_1 = (obstacle_x[1] - j*32)*2;
+    wire [5:0] hi0 = dx0[10:5];
+    wire [5:0] lo0 = {dx0[4:0], 1'b0};
+    wire [5:0] hi1 = dx1[10:5];
+    wire [5:0] lo1 = {dx1[4:0], 1'b0};
 
-                if ((x_scaled+y > obs_x_scaled_1+GROUND_Y-OBSTACLE_HEIGHT) && (x_scaled+GROUND_Y-OBSTACLE_HEIGHT < obs_x_scaled_1+y))
-                    obstacle_pixel_1 = 1'b1;
-            end
-        end
-    end
+    // triangle i is drawn if i <= cluster_size and it has not wrapped below x=0 (ox >= 32*i)
+    wire a0_0 = 1'b1;
+    wire a1_0 = (cluster_size[0] >= 1) && (obstacle_x[0][9:5] >= 1);
+    wire a2_0 = (cluster_size[0] >= 2) && (obstacle_x[0][9:5] >= 2);
+    wire a3_0 = (cluster_size[0] == 3) && (obstacle_x[0][9:5] >= 3);
+
+    wire a0_1 = 1'b1;
+    wire a1_1 = (cluster_size[1] >= 1) && (obstacle_x[1][9:5] >= 1);
+    wire a2_1 = (cluster_size[1] >= 2) && (obstacle_x[1][9:5] >= 2);
+    wire a3_1 = (cluster_size[1] == 3) && (obstacle_x[1][9:5] >= 3);
+
+    wire h0_0  = (hi0 == 6'b000000), hm1_0 = (hi0 == 6'b111111), hm2_0 = (hi0 == 6'b111110),
+         hm3_0 = (hi0 == 6'b111101), hm4_0 = (hi0 == 6'b111100);
+    wire h0_1  = (hi1 == 6'b000000), hm1_1 = (hi1 == 6'b111111), hm2_1 = (hi1 == 6'b111110),
+         hm3_1 = (hi1 == 6'b111101), hm4_1 = (hi1 == 6'b111100);
+
+    wire posA_0 = (h0_0 & a0_0) | (hm1_0 & a1_0) | (hm2_0 & a2_0) | (hm3_0 & a3_0);   // triangle's right half
+    wire posB_0 = (hm1_0 & a0_0) | (hm2_0 & a1_0) | (hm3_0 & a2_0) | (hm4_0 & a3_0); // triangle's left half
+    wire posA_1 = (h0_1 & a0_1) | (hm1_1 & a1_1) | (hm2_1 & a2_1) | (hm3_1 & a3_1);
+    wire posB_1 = (hm1_1 & a0_1) | (hm2_1 & a1_1) | (hm3_1 & a2_1) | (hm4_1 & a3_1);
+
+    wire obstacle_pixel   = obs_band & ((posA_0 & (lo0 < e)) | (posB_0 & (lo0 > e_c)));
+    wire obstacle_pixel_1 = obs_band & ((posA_1 & (lo1 < e)) | (posB_1 & (lo1 > e_c)));
 
     wire score_bg = x>450 && y<75;
 
@@ -240,13 +251,11 @@ module tt_um_dino(
                 {R, G, B} = 6'b100000;
             else if(score_pixel)
                 {R, G, B} = 6'b000000;
-            else if(score_bg) 
+            else if(score_bg)
                 {R, G, B} = 6'b101000;
             else if(y>GROUND_Y)
                 {R, G, B} = 6'b010100;
-            else if(obstacle_pixel)
-                {R, G, B} = 6'b101010;
-            else if(obstacle_pixel_1)
+            else if(obstacle_pixel | obstacle_pixel_1)
                 {R, G, B} = 6'b101010;
         end
     end
@@ -257,11 +266,10 @@ module tt_um_dino(
             game_over <= 1'b0;
         else if (game_reset)
             game_over <= 1'b0;
-        else if ({score_thousands, score_hundreds, score_tens, score_ones} = 16'h9999)
+        else if (score_full)
             game_over <= 1'b1;
         else if (video_active && ball_pixel && (obstacle_pixel | obstacle_pixel_1))
             game_over <= 1'b1;
     end
-    
 
 endmodule
