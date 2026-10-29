@@ -1,10 +1,10 @@
 
 # Tiny Tapeout project information
 project:
-  title:        "Dino game"      # Project title
-  author:       "test"      # Your name
+  title:        "Dino-Inspired-VGA-Obstacle-Avoidance-Game"      # Project title
+  author:       "Adithya, Bhavani, Idhant, Jyoshitha"      # Your name
   discord:      ""      # Your discord username, for communication and automatically assigning you a Tapeout role (optional)
-  description:  "test"      # One line description of what your project does
+  description:  "A Chrome-dino-style VGA game: press a button to make a ball jump over scrolling spikes, with the score shown on screen"      # One line description of what your project does
   language:     "Verilog" # other examples include SystemVerilog, Amaranth, VHDL, etc
   clock_hz:     25175000       # Clock frequency in Hz (or 0 if not applicable)
 
