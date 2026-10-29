@@ -28,7 +28,7 @@ project:
 pinout:
   # Inputs
   ui[0]: "jmp_in"
-  ui[1]: ""
+  ui[1]: "game_reset"
   ui[2]: ""
   ui[3]: ""
   ui[4]: ""

@@ -6,10 +6,10 @@ module tt_um_dino(
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
     input  wire       ena,      // always 1 when the design is powered, so you can ignore it
     input  wire       clk,      // clock - 50Mhz
-    output wire video_active,    // only for fpga
+    //output wire video_active,    // only for fpga
     input  wire       rst_n     // reset_n - low to reset
 );
-
+    wire video_active;
     // VGA signals
     wire hsync, vsync;
     wire [9:0] x, y;
