@@ -6,13 +6,12 @@ module tt_um_dino(
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
     input  wire       ena,      // always 1 when the design is powered, so you can ignore it
     input  wire       clk,      // clock - 50Mhz
-    output wire video_active,    // only for fpga
     input  wire       rst_n     // reset_n - low to reset
 );
 
     // VGA signals
     wire hsync, vsync;
-    //wire video_active;
+    wire video_active;
     wire [9:0] x, y;
 
     reg [1:0] R, G, B;
@@ -259,7 +258,7 @@ module tt_um_dino(
             game_over <= 1'b0;
         else if (game_reset)
             game_over <= 1'b0;
-        else if ({score_thousands, score_hundreds, score_tens, score_ones} = 16'h9999)
+        else if ({score_thousands, score_hundreds, score_tens, score_ones} == 16'h9999)
             game_over <= 1'b1;
         else if (video_active && ball_pixel && (obstacle_pixel | obstacle_pixel_1))
             game_over <= 1'b1;
