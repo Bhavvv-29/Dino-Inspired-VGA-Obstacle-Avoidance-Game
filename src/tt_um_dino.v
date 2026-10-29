@@ -192,45 +192,36 @@ module tt_um_dino(
           cluster_size[1] <= rnd[1:0];
     end
     
-    // display logic -------------------------------------------------------------------------------
-    wire [10:0] x_scaled = x*2;
-    
-    reg [10:0] obs_x_scaled;
-    reg obstacle_pixel;
-    
-    reg [2:0] i;
+    // obstacle display logic ----------------------------------------------------------------------------------------------------
+   localparam [9:0] TRI_TOP = GROUND_Y - OBSTACLE_HEIGHT;
+
+    reg        obstacle_pixel, obstacle_pixel_1;
+    reg [9:0]  tri_h;       // vertical distance below triangle apex line (shared)
+    reg [9:0]  u0, u1;      // x position relative to leftmost apex of each cluster (+16)
+    reg [3:0]  a0, a1;      // ~|distance to nearest apex| (low bits)
+
     always @(*) begin
-        obstacle_pixel = 1'b0;
-        obs_x_scaled = obstacle_x[0]*2; 
+        // shared vertical term
+        tri_h = y - TRI_TOP;
 
-        for (i=0; i<4; i=i+1) begin
-            if (i <= {1'b0, cluster_size[0]}) begin
-                obs_x_scaled = (obstacle_x[0] - i*32)*2;
+        // obstacle 0: x offset from leftmost apex, shifted by 16 so u[4:0] is the slot-local position
+        u0 = x - obstacle_x[0] + {cluster_size[0], 5'b0} + 10'd16;
+        a0 = u0[3:0] ^ {4{~u0[4]}};
 
-                if ((x_scaled+y > obs_x_scaled+GROUND_Y-OBSTACLE_HEIGHT) && (x_scaled+GROUND_Y-OBSTACLE_HEIGHT < obs_x_scaled+y))
-                    obstacle_pixel = 1'b1;
-            end
-        end
-    end
-    
-    reg [10:0] obs_x_scaled_1;
-    reg obstacle_pixel_1;
-    
-    reg [2:0] j;
-    always @(*) begin
-        obstacle_pixel_1 = 1'b0;
-        obs_x_scaled_1 = obstacle_x[1]*2; 
+        obstacle_pixel = (y > TRI_TOP)
+                      && (u0[9:5] <= {3'b0, cluster_size[0]})   // inside a valid cluster slot
+                      && ({a0, 1'b0} < tri_h);                  // inside that slot's triangle
 
-        for (j=0; j<4; j=j+1) begin
-            if (j <= {1'b0, cluster_size[1]}) begin
-                obs_x_scaled_1 = (obstacle_x[1] - j*32)*2;
+        // obstacle 1
+        u1 = x - obstacle_x[1] + {cluster_size[1], 5'b0} + 10'd16;
+        a1 = u1[3:0] ^ {4{~u1[4]}};
 
-                if ((x_scaled+y > obs_x_scaled_1+GROUND_Y-OBSTACLE_HEIGHT) && (x_scaled+GROUND_Y-OBSTACLE_HEIGHT < obs_x_scaled_1+y))
-                    obstacle_pixel_1 = 1'b1;
-            end
-        end
+        obstacle_pixel_1 = (y > TRI_TOP)
+                        && (u1[9:5] <= {3'b0, cluster_size[1]})
+                        && ({a1, 1'b0} < tri_h);
     end
 
+    // display logic ----------------------------------------------------------------------------------------------------------
     wire score_bg = x>450 && y<75;
 
     always @(*) begin
