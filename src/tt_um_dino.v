@@ -86,13 +86,25 @@ module tt_um_dino(
     );
 
     // obstacle logic -------------------------------------------------------------------------------
-    reg [9:0] obstacle_x;
+    reg [9:0] obstacle_x [0:1];
+    reg obstacle_2_valid;
 
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            obstacle_x <= 10'd1023;
+        if (!rst_n)begin
+            obstacle_x[0] <= 10'd1023;
+            obstacle_x[1] <= 10'd1023;
+            obstacle_2_valid <= 1'b0;
+            end
         else if (obs_tick && !game_over) begin
-            obstacle_x <= (obstacle_x==10'd0) ? 10'd500 + rnd[10:2] : obstacle_x-1;
+            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? 10'd760 + rnd[9:2] : obstacle_x[0]-1;
+                if(obstacle_x[0] == 10'd400)begin
+                    obstacle_2_valid <= 1;
+                    obstacle_x[1] <= 10'd760 + rnd[9:2];
+                end
+                if(obstacle_x[1] == 0)
+                    obstacle_2_valid <= 0;
+                if(obstacle_2_valid == 1)
+                    obstacle_x[1] <= (obstacle_x[1]==10'd0) ? 10'd1023 : obstacle_x[1]-1;
         end
     end
     
@@ -109,7 +121,7 @@ module tt_um_dino(
     );
 
     // scoreboard ---------------------------------------------------------------------------------
-   wire score_inc = obs_tick && !game_over && obstacle_x==BALL_X-80;
+   wire score_inc = obs_tick && !game_over && (obstacle_x[0]==BALL_X-80 | obstacle_x[1]==BALL_X-80);
     reg [3:0] score_ones, score_tens, score_hundreds, score_thousands;
 
 
@@ -156,13 +168,17 @@ module tt_um_dino(
         .q(rnd)
     );
 
-    reg [1:0] cluster_size;
+    reg [1:0] cluster_size[0:1];
 
     always @(posedge clk or negedge rst_n) begin
-        if(!rst_n) 
-          cluster_size <= 2'b00;
-        else if(obstacle_x==0)
-          cluster_size <= rnd[1:0];
+        if(!rst_n) begin
+          cluster_size[0] <= 2'b00;
+          cluster_size[1] <= 2'b00;
+          end
+        else if(obstacle_x[0]==0)
+          cluster_size[0] <= rnd[1:0];
+        else if(obstacle_x[1]==0)
+          cluster_size[1] <= rnd[1:0];
     end
     
     // display logic -------------------------------------------------------------------------------
@@ -174,17 +190,36 @@ module tt_um_dino(
     reg [2:0] i;
     always @(*) begin
         obstacle_pixel = 1'b0;
-        obs_x_scaled = obstacle_x*2; 
+        obs_x_scaled = obstacle_x[0]*2; 
 
         for (i=0; i<4; i=i+1) begin
-            if (i <= {1'b0, cluster_size}) begin
-                obs_x_scaled = (obstacle_x - i*32)*2;
+            if (i <= {1'b0, cluster_size[0]}) begin
+                obs_x_scaled = (obstacle_x[0] - i*32)*2;
 
                 if ((x_scaled+y > obs_x_scaled+GROUND_Y-OBSTACLE_HEIGHT) && (x_scaled+GROUND_Y-OBSTACLE_HEIGHT < obs_x_scaled+y))
                     obstacle_pixel = 1'b1;
             end
         end
     end
+    
+    reg [10:0] obs_x_scaled_1;
+    reg obstacle_pixel_1;
+    
+    reg [2:0] j;
+    always @(*) begin
+        obstacle_pixel_1 = 1'b0;
+        obs_x_scaled_1 = obstacle_x[1]*2; 
+
+        for (j=0; j<4; j=j+1) begin
+            if (j <= {1'b0, cluster_size[1]}) begin
+                obs_x_scaled_1 = (obstacle_x[1] - j*32)*2;
+
+                if ((x_scaled+y > obs_x_scaled_1+GROUND_Y-OBSTACLE_HEIGHT) && (x_scaled+GROUND_Y-OBSTACLE_HEIGHT < obs_x_scaled_1+y))
+                    obstacle_pixel_1 = 1'b1;
+            end
+        end
+    end
+
 
     wire score_bg = x>450 && y<75;
 
@@ -201,6 +236,8 @@ module tt_um_dino(
                 {R, G, B} = 6'b010100;
             else if(obstacle_pixel)
                 {R, G, B} = 6'b101010;
+            else if(obstacle_pixel_1)
+                {R, G, B} = 6'b101010;
         end
     end
 
@@ -208,7 +245,7 @@ module tt_um_dino(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             game_over <= 1'b0;
-        else if (video_active && ball_pixel && obstacle_pixel)
+        else if (video_active && ball_pixel && (obstacle_pixel | obstacle_pixel_1))
             game_over <= 1'b1;
     end
     
