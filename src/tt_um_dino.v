@@ -257,6 +257,8 @@ module tt_um_dino(
             game_over <= 1'b0;
         else if (game_reset)
             game_over <= 1'b0;
+        else if ({score_thousands, score_hundreds, score_tens, score_ones} = 16'h9999)
+            game_over <= 1'b1;
         else if (video_active && ball_pixel && (obstacle_pixel | obstacle_pixel_1))
             game_over <= 1'b1;
     end
