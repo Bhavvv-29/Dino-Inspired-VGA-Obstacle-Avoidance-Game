@@ -6,7 +6,7 @@ module ball_controller #(
     output reg [9:0] ball_y
 );
 
-    localparam signed BALL_INITIAL_SPEED = -6;
+    localparam signed BALL_INITIAL_SPEED = -15;
 
     reg signed [9:0] ball_speed;
 

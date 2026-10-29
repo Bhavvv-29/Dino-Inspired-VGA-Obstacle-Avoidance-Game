@@ -1,7 +1,7 @@
 module LFSR #(
-    parameter N = 6,
-    parameter [N-1:0] TAPS = 6'b110000,
-    parameter [N-1:0] SEED = 6'b001100
+    parameter N = 16,
+    parameter [N-1:0] TAPS = 16'b1000100001010011,
+    parameter [N-1:0] SEED = 16'b1001000110011011
 )(
     input clk, rst_n, 
     output reg [N-1:0] q
