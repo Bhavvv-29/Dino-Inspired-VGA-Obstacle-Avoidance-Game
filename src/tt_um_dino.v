@@ -41,6 +41,7 @@ module tt_um_dino(
     localparam GRAVITY_SCALE = 3750;
 
     localparam OBSTACLE_HEIGHT = 23;
+
     localparam OBSTACLE_SPEED = 6;
 
     // game input with synchronizer --------------------------------------------------------------
@@ -91,7 +92,7 @@ module tt_um_dino(
 
     ball_controller #(
         .GROUND_Y(GROUND_Y),
-        .GRAVITY_SCALE(GRAVITY_SCALE)
+        .GRAVITY_SCALE(GRAVITY_SCALE) 
     ) u_bsc (
         .clk(clk),
         .rst_n(rst_n),
@@ -171,16 +172,21 @@ module tt_um_dino(
     );
 
     reg [1:0] cluster_size[0:1];
+    reg [1:0] obs_scaling [0:1];
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-          cluster_size[0] <= 2'b00;
-          cluster_size[1] <= 2'b10;
-          end
-        else if(obstacle_x[0]==0)
-          cluster_size[0] <= rnd[1:0];
-        else if(obstacle_x[1]==0)
-          cluster_size[1] <= rnd[1:0];
+            cluster_size[0] <= 2'b00;
+            cluster_size[1] <= 2'b10;
+            obs_scaling[0] <= 2'b11;
+            obs_scaling [1] <= 2'b01;
+        end else if(obstacle_x[0]==0) begin
+            cluster_size[0] <= rnd[15:14];
+            obs_scaling[0] <= rnd[13:12];
+        end else if(obstacle_x[1]==0) begin
+            cluster_size[1] <= rnd[11:10];
+            obs_scaling [1] <= rnd[1:0];
+        end
     end
     
     // obstacle logic -------------------------------------------------------------------------------------------------------------------
@@ -197,10 +203,10 @@ module tt_um_dino(
             obstacle_x[1] <= 10'd1023;
             obstacle_2_valid <= 1'b0;
         end else if (obs_tick && !game_over) begin
-            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? 10'd896 + rnd[8:2] : obstacle_x[0]-1;
+            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? 10'd896 + {3'b000, rnd[9:3]} : obstacle_x[0]-1;
                 if(obstacle_x[0] == 10'd511)begin
                     obstacle_2_valid <= 1;
-                    obstacle_x[1] <= 10'd896 + rnd[8:2];
+                    obstacle_x[1] <= 10'd896 + {3'b000, rnd[8:2]};
                 end
                 if(obstacle_x[1] == 0)
                     obstacle_2_valid <= 0;
@@ -227,8 +233,8 @@ module tt_um_dino(
         if (y>=OBS_TOP && y<GROUND_Y) begin
             for (i=0; i<4; i=i+1) begin
                 for(j=0; j<2; j=j+1) begin
-                    if (i <= {1'b0, cluster_size[j[0]]})
-                        if ((2*(dx[j] + 32*$signed(i)) < $signed(y)-OBS_TOP) && (2*(dx[j] + 32*$signed(i)) > OBS_TOP-$signed(y)))
+                    if (i <= {1'b0, cluster_size[j]})
+                        if ((((dx[j] + 32*$signed(i)) << obs_scaling[j]) < $signed(y)-OBS_TOP) && (((dx[j] + 32*$signed(i)) << obs_scaling[j]) > OBS_TOP-$signed(y)))
                             obstacle_pixel[j[0]] = 1'b1;
                 end
             end
