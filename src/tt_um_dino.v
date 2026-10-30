@@ -73,19 +73,7 @@ module tt_um_dino(
     localparam OBSTACLE_HEIGHT = 23;
     localparam OBSTACLE_SPEED = 6;
 
-    // edge detector ----------------------------------------------------------------------------
-    wire jmp_in;
-    reg jmp_in_reg;
-
-    always @(posedge clk or negedge rst_n) begin
-      if(!rst_n)
-          jmp_in_reg <= 1'b0;
-      else
-          jmp_in_reg <= ui_in[0];
-    end
-
-    assign jmp_in = (ui_in[0]!=jmp_in_reg);  // only for vga playground
-    // assign jmp_in = (ui_in[0] && !jmp_in_reg);  
+     
     // tick generator ---------------------------------------------------------------------------
     wire ball_tick, obs_tick;
 
