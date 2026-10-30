@@ -210,9 +210,9 @@ module tt_um_dino(
     end
     
     // obstacle display logic --------------------------------------------------------------------------------------------------------------
-    localparam OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT+1;
+    localparam OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
 
-    reg [10:0] dx [0:1];        
+    reg signed [10:0] dx [0:1];        
     reg [1:0] obstacle_pixel;
 
     reg [2:0] i;
@@ -224,12 +224,12 @@ module tt_um_dino(
         dx[0] = x-obstacle_x[0];
         dx[1] = x-obstacle_x[1];
 
-        if (y>=OBS_TOP && y<OBS_TOP+64) begin
+        if (y>=OBS_TOP && y<GROUND_Y) begin
             for (i=0; i<4; i=i+1) begin
                 for(j=0; j<2; j=j+1) begin
-                    if (i <= {1'b0, cluster_size[j]})
-                        if (((dx[j][10:5] == 6'd0-i) && ({dx[j][4:0], 1'b0} <= y-OBS_TOP)) || ((dx[j][10:5] == 6'd63-i) && ({dx[j][4:0], 1'b0} + y-OBS_TOP >= 64)))
-                            obstacle_pixel[0] = 1'b1;
+                    if (i <= {1'b0, cluster_size[j[0]]})
+                        if ((2*(dx[j] + 32*$signed(i)) < $signed(y)-OBS_TOP) && (2*(dx[j] + 32*$signed(i)) > OBS_TOP-$signed(y)))
+                            obstacle_pixel[j[0]] = 1'b1;
                 end
             end
         end
