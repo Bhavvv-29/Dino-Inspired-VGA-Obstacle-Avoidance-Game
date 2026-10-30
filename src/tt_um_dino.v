@@ -35,10 +35,6 @@ module tt_um_dino(
     .vpos(y)
     );
 
-    // game reset
-    wire game_reset = ui_in[1];
-    reg game_over;
-
     // game parameters ---------------------------------------------------------------------------
     localparam BALL_X = 100;
     localparam GROUND_Y = 400;
@@ -60,6 +56,7 @@ module tt_um_dino(
         end
     end
 
+    // game reset logic
     wire game_reset = ui_sync[1];
     reg game_over;
     
@@ -191,7 +188,7 @@ module tt_um_dino(
     reg obstacle_2_valid;
 
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)begin
+        if (!rst_n) begin
             obstacle_x[0] <= 10'd1023;
             obstacle_x[1] <= 10'd1023;
             obstacle_2_valid <= 1'b0;
@@ -215,26 +212,25 @@ module tt_um_dino(
     // obstacle display logic --------------------------------------------------------------------------------------------------------------
     localparam OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT+1;
 
-    reg [10:0] obs_x_scaled;      
-    reg [10:0] obs_x_scaled_1;  
+    reg [10:0] dx [0:1];        
     reg [1:0] obstacle_pixel;
 
     reg [2:0] i;
+    reg [1:0] j;
+
     always @(*) begin
         obstacle_pixel = 2'b00;
 
-        obs_x_scaled = x-obstacle_x[0];
-        obs_x_scaled_1 = x-obstacle_x[1];
+        dx[0] = x-obstacle_x[0];
+        dx[1] = x-obstacle_x[1];
 
         if (y>=OBS_TOP && y<OBS_TOP+64) begin
             for (i=0; i<4; i=i+1) begin
-                if (i <= {1'b0, cluster_size[0]})
-                    if (((obs_x_scaled[10:5] == 6'd0-i) && ({obs_x_scaled[4:0], 1'b0} <= y-OBS_TOP)) || ((obs_x_scaled[10:5] == 6'd63-i) && ({obs_x_scaled[4:0], 1'b0} + y - OBS_TOP >= 64)))
-                        obstacle_pixel[0] = 1'b1;
-
-                if (i <= {1'b0, cluster_size[1]})
-                    if (((obs_x_scaled_1[10:5] == 6'd0-i) && ({obs_x_scaled_1[4:0], 1'b0} <= y-OBS_TOP)) || ((obs_x_scaled_1[10:5] == 6'd63-i) && ({obs_x_scaled_1[4:0], 1'b0} + y - OBS_TOP >= 64)))
-                        obstacle_pixel[1] = 1'b1;
+                for(j=0; j<2; j=j+1) begin
+                    if (i <= {1'b0, cluster_size[j]})
+                        if (((dx[j][10:5] == 6'd0-i) && ({dx[j][4:0], 1'b0} <= y-OBS_TOP)) || ((dx[j][10:5] == 6'd63-i) && ({dx[j][4:0], 1'b0} + y-OBS_TOP >= 64)))
+                            obstacle_pixel[0] = 1'b1;
+                end
             end
         end
     end
