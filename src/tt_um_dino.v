@@ -34,9 +34,36 @@ module tt_um_dino(
     .vpos(y)
     );
 
-    // game reset
-    wire game_reset = ui_in[1];
-    reg game_over;
+    // game reset with input synchronizer
+
+    reg [1:0] ui_meta, ui_sync;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            ui_meta <= 2'b00;
+            ui_sync <= 2'b00;
+        end else begin
+            ui_meta <= ui_in[1:0];
+            ui_sync <= ui_meta;
+        end
+    end
+
+    wire game_reset = ui_sync[1];
+    reg  game_over;
+
+    // edge detector 
+    wire jmp_in;
+    reg  jmp_in_reg;
+
+    always @(posedge clk or negedge rst_n) begin
+      if(!rst_n)
+          jmp_in_reg <= 1'b0;
+      else
+          jmp_in_reg <= ui_sync[0];
+    end
+
+    assign jmp_in = (ui_sync[0] != jmp_in_reg);
+    // assign jmp_in = (ui_sync[0] && !jmp_in_reg);
 
     // game parameters ---------------------------------------------------------------------------
     localparam BALL_X = 100;
