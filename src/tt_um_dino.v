@@ -6,13 +6,13 @@ module tt_um_dino(
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
     input  wire       ena,      // always 1 when the design is powered, so you can ignore it
     input  wire       clk,      // clock - 50Mhz
-    // output wire video_active,    // only for fpga
+    output wire video_active,    // only for fpga
     input  wire       rst_n     // reset_n - low to reset
 );
 
     // VGA signals
     wire hsync, vsync;
-    wire video_active;
+    //wire video_active;
     wire [9:0] x, y;
 
     reg [1:0] R, G, B;
@@ -58,8 +58,8 @@ module tt_um_dino(
           jmp_in_reg <= ui_in[0];
     end
 
-    assign jmp_in = (ui_in[0]!=jmp_in_reg);  // only for vga playground
-    // assign jmp_in = (ui_in[0] && !jmp_in_reg);  
+    // assign jmp_in = (ui_in[0]!=jmp_in_reg);  // only for vga playground
+    assign jmp_in = (ui_in[0] && !jmp_in_reg);  
     // tick generator ---------------------------------------------------------------------------
     wire ball_tick, obs_tick;
 
@@ -84,7 +84,7 @@ module tt_um_dino(
         .rst_n(rst_n),
         .tick(ball_tick),
         .stop(game_over),
-        .jmp_in(jmp_in),
+        .jmp_in(ui_in[0]),
         .ball_y(ball_y)
     );
 
@@ -127,7 +127,7 @@ module tt_um_dino(
     );
 
     // scoreboard ---------------------------------------------------------------------------------
-   wire score_inc = obs_tick && !game_over && (obstacle_x[0]==BALL_X-80 | obstacle_x[1]==BALL_X-80);
+    wire score_inc = obs_tick && !game_over && (obstacle_x[0]==BALL_X-80 | obstacle_x[1]==BALL_X-80);
     reg [3:0] score_ones, score_tens, score_hundreds, score_thousands;
 
 
@@ -184,7 +184,7 @@ module tt_um_dino(
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
           cluster_size[0] <= 2'b00;
-          cluster_size[1] <= 2'b00;
+          cluster_size[1] <= 2'b10;
           end
         else if(obstacle_x[0]==0)
           cluster_size[0] <= rnd[1:0];
@@ -192,36 +192,37 @@ module tt_um_dino(
           cluster_size[1] <= rnd[1:0];
     end
     
-    // obstacle display logic ----------------------------------------------------------------------------------------------------
-   localparam [9:0] TRI_TOP = GROUND_Y - OBSTACLE_HEIGHT;
+    // display logic -------------------------------------------------------------------------------
+    localparam OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT+1;
 
-    reg        obstacle_pixel, obstacle_pixel_1;
-    reg [9:0]  tri_h;       // vertical distance below triangle apex line (shared)
-    reg [9:0]  u0, u1;      // x position relative to leftmost apex of each cluster (+16)
-    reg [3:0]  a0, a1;      // ~|distance to nearest apex| (low bits)
+    reg [10:0] obs_x_scaled;      
+    reg [10:0] obs_x_scaled_1;  
+    reg obstacle_pixel;
+    reg obstacle_pixel_1;
 
+    reg [2:0] i;
     always @(*) begin
-        // shared vertical term
-        tri_h = y - TRI_TOP;
+        obstacle_pixel   = 1'b0;
+        obstacle_pixel_1 = 1'b0;
 
-        // obstacle 0: x offset from leftmost apex, shifted by 16 so u[4:0] is the slot-local position
-        u0 = x - obstacle_x[0] + {cluster_size[0], 5'b0} + 10'd16;
-        a0 = u0[3:0] ^ {4{~u0[4]}};
+        obs_x_scaled   = x - obstacle_x[0];
+        obs_x_scaled_1 = x - obstacle_x[1];
 
-        obstacle_pixel = (y > TRI_TOP)
-                      && (u0[9:5] <= {3'b0, cluster_size[0]})   // inside a valid cluster slot
-                      && ({a0, 1'b0} < tri_h);                  // inside that slot's triangle
+        if (y >= OBS_TOP && y < OBS_TOP + 64) begin
+            for (i = 0; i < 4; i = i + 1) begin
+                if (i <= {1'b0, cluster_size[0]})
+                    if (((obs_x_scaled[10:5] == 6'd0  - i) && ({obs_x_scaled[4:0], 1'b0} <= y - OBS_TOP)) ||
+                        ((obs_x_scaled[10:5] == 6'd63 - i) && ({obs_x_scaled[4:0], 1'b0} + y - OBS_TOP >= 64)))
+                        obstacle_pixel = 1'b1;
 
-        // obstacle 1
-        u1 = x - obstacle_x[1] + {cluster_size[1], 5'b0} + 10'd16;
-        a1 = u1[3:0] ^ {4{~u1[4]}};
-
-        obstacle_pixel_1 = (y > TRI_TOP)
-                        && (u1[9:5] <= {3'b0, cluster_size[1]})
-                        && ({a1, 1'b0} < tri_h);
+                if (i <= {1'b0, cluster_size[1]})
+                    if (((obs_x_scaled_1[10:5] == 6'd0  - i) && ({obs_x_scaled_1[4:0], 1'b0} <= y - OBS_TOP)) ||
+                        ((obs_x_scaled_1[10:5] == 6'd63 - i) && ({obs_x_scaled_1[4:0], 1'b0} + y - OBS_TOP >= 64)))
+                        obstacle_pixel_1 = 1'b1;
+            end
+        end
     end
 
-    // display logic ----------------------------------------------------------------------------------------------------------
     wire score_bg = x>450 && y<75;
 
     always @(*) begin
@@ -253,6 +254,5 @@ module tt_um_dino(
         else if (video_active && ball_pixel && (obstacle_pixel | obstacle_pixel_1))
             game_over <= 1'b1;
     end
-    
 
 endmodule
