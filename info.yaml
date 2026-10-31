@@ -15,7 +15,7 @@ project:
   top_module:  "tt_um_dino"
   
   # List your project's source files here. Source files must be in ./src and you must list each source file separately, one per line:
-    source_files:
+  source_files:
     - "tt_um_dino.v"
     - "hvsync_generator.v"
     - "tick_gen.v"
