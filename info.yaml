@@ -23,6 +23,7 @@ project:
     - "LFSR.v"
     - "circle_lut.v"
     - "score_display.v"
+    - "game_over_display.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 pinout:
