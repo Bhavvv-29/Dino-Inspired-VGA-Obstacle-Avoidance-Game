@@ -15,7 +15,7 @@ project:
   top_module:  "tt_um_dino"
   
   # List your project's source files here. Source files must be in ./src and you must list each source file separately, one per line:
-  source_files:
+    source_files:
     - "tt_um_dino.v"
     - "hvsync_generator.v"
     - "tick_gen.v"
@@ -23,6 +23,7 @@ project:
     - "LFSR.v"
     - "circle_lut.v"
     - "score_display.v"
+    - "game_over_display.v"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 pinout:
