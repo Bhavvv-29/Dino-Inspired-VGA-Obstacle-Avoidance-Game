@@ -184,6 +184,14 @@ module tt_um_dino(
         .pixel(score_pixel)
    ); 
 
+    wire game_over_pixel;
+
+   game_over_display u_game_over(
+        .x(x), .y(y),
+        .game_over(game_over),
+        .pixel(game_over_pixel)
+);
+
     // random generation ---------------------------------------------------------------------------
     wire [15:0] rnd;
 
@@ -256,6 +264,8 @@ module tt_um_dino(
                 {R, G, B} = 6'b100000;
             else if(score_pixel)
                 {R, G, B} = 6'b000000;
+            else if(game_over_pixel)
+                {R ,G ,B} = 6'b110000;
             else if(score_bg) 
                 {R, G, B} = 6'b101000;
             else if(y>GROUND_Y)
