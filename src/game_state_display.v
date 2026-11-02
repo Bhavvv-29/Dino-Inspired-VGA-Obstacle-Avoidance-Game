@@ -3,142 +3,50 @@ module game_state_display (
     input  wire       game_over,
     output wire       pixel
 );
+    // 3x5 glyphs, row 0 in the top bits, 3 bits per row
+    localparam [14:0] G = 15'b011_100_101_101_011;
+    localparam [14:0] A = 15'b010_101_111_101_101;
+    localparam [14:0] M = 15'b101_111_111_101_101;
+    localparam [14:0] E = 15'b111_100_110_100_111;
+    localparam [14:0] O = 15'b010_101_101_101_010;
+    localparam [14:0] V = 15'b101_101_101_101_010;
+    localparam [14:0] R = 15'b110_101_110_101_101;
 
-    localparam X0 = 224;
-    localparam Y0 = 220;
+    wire [3:0] chr_cell = x[7:4];     // which 16 px character cell
+    wire [2:0] row  = y[4:2];     // which font row (0-4 valid)
+    wire [1:0] col  = x[3:2];     // which font column (0-2 valid)
 
-    // Character start positions
-    localparam X_G  = X0;
-    localparam X_A  = X0 + 16;
-    localparam X_M  = X0 + 32;
-    localparam X_E1 = X0 + 48;
-
-    localparam X_O  = X0 + 76;
-    localparam X_V  = X0 + 92;
-    localparam X_E2 = X0 + 108;
-    localparam X_R  = X0 + 124;
-
-    wire active_y = (y >= Y0) && (y < Y0 + 20);
-
-    wire row0 = y < Y0+4;
-    wire row1 = y >= Y0+4  && y < Y0+8;
-    wire row2 = y >= Y0+8  && y < Y0+12;
-    wire row3 = y >= Y0+12 && y < Y0+16;
-    wire row4 = y >= Y0+16;
-
-    reg [2:0] glyph;
-    reg [9:0] char_x;
-    reg active_char;
+    reg [14:0] bitmap;
+    reg [2:0]  glyph_row;
 
     always @(*) begin
-        glyph = 3'b000;
-        char_x = 0;
-        active_char = 1'b0;
+        case (chr_cell)
+            4'd0: bitmap = G;
+            4'd1: bitmap = A;
+            4'd2: bitmap = M;
+            4'd3: bitmap = E;
+            // 4'd4 is the space
+            4'd5: bitmap = O;
+            4'd6: bitmap = V;
+            4'd7: bitmap = E;
+            4'd8: bitmap = R;
+            default: bitmap = 15'b0;
+        endcase
 
-        if (x >= X_G && x < X_G+12) begin
-            char_x = x-X_G;
-            active_char = 1'b1;
-            case (1'b1)
-                row0: glyph = 3'b011;
-                row1: glyph = 3'b100;
-                row2: glyph = 3'b101;
-                row3: glyph = 3'b101;
-                row4: glyph = 3'b011;
-            endcase
-        end
-
-        else if (x >= X_A && x < X_A+12) begin
-            char_x = x-X_A;
-            active_char = 1'b1;
-            case (1'b1)
-                row0: glyph = 3'b010;
-                row1: glyph = 3'b101;
-                row2: glyph = 3'b111;
-                row3: glyph = 3'b101;
-                row4: glyph = 3'b101;
-            endcase
-        end
-
-        else if (x >= X_M && x < X_M+12) begin
-            char_x = x-X_M;
-            active_char = 1'b1;
-            case (1'b1)
-                row0: glyph = 3'b101;
-                row1: glyph = 3'b111;
-                row2: glyph = 3'b111;
-                row3: glyph = 3'b101;
-                row4: glyph = 3'b101;
-            endcase
-        end
-
-        else if (x >= X_E1 && x < X_E1+12) begin
-            char_x = x-X_E1;
-            active_char = 1'b1;
-            case (1'b1)
-                row0: glyph = 3'b111;
-                row1: glyph = 3'b100;
-                row2: glyph = 3'b110;
-                row3: glyph = 3'b100;
-                row4: glyph = 3'b111;
-            endcase
-        end
-
-        else if (x >= X_O && x < X_O+12) begin
-            char_x = x-X_O;
-            active_char = 1'b1;
-            case (1'b1)
-                row0: glyph = 3'b010;
-                row1: glyph = 3'b101;
-                row2: glyph = 3'b101;
-                row3: glyph = 3'b101;
-                row4: glyph = 3'b010;
-            endcase
-        end
-
-        else if (x >= X_V && x < X_V+12) begin
-            char_x = x-X_V;
-            active_char = 1'b1;
-            case (1'b1)
-                row0: glyph = 3'b101;
-                row1: glyph = 3'b101;
-                row2: glyph = 3'b101;
-                row3: glyph = 3'b101;
-                row4: glyph = 3'b010;
-            endcase
-        end
-
-        else if (x >= X_E2 && x < X_E2+12) begin
-            char_x = x-X_E2;
-            active_char = 1'b1;
-            case (1'b1)
-                row0: glyph = 3'b111;
-                row1: glyph = 3'b100;
-                row2: glyph = 3'b110;
-                row3: glyph = 3'b100;
-                row4: glyph = 3'b111;
-            endcase
-        end
-
-        else if (x >= X_R && x < X_R+12) begin
-            char_x = x-X_R;
-            active_char = 1'b1;
-            case (1'b1)
-                row0: glyph = 3'b110;
-                row1: glyph = 3'b101;
-                row2: glyph = 3'b110;
-                row3: glyph = 3'b101;
-                row4: glyph = 3'b101;
-            endcase
-        end
+        case (row)
+            3'd0: glyph_row = bitmap[14:12];
+            3'd1: glyph_row = bitmap[11:9];
+            3'd2: glyph_row = bitmap[8:6];
+            3'd3: glyph_row = bitmap[5:3];
+            3'd4: glyph_row = bitmap[2:0];
+            default: glyph_row = 3'b0;   // rows 5-7 are blank
+        endcase
     end
 
-    wire col0 = char_x < 4;
-    wire col1 = char_x >= 4 && char_x < 8;
-    wire col2 = char_x >= 8;
-
-    assign pixel = game_over && active_y && active_char &&
-                   ((col0 && glyph[2]) ||
-                    (col1 && glyph[1]) ||
-                    (col2 && glyph[0]));
-
+    assign pixel = game_over
+                && (x[9:8] == 2'b01)
+                && (y[9:5] == 5'd7)
+                && ((col == 2'd0 && glyph_row[2]) ||
+                    (col == 2'd1 && glyph_row[1]) ||
+                    (col == 2'd2 && glyph_row[0]));
 endmodule
