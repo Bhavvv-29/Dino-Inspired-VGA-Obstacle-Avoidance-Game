@@ -41,7 +41,6 @@ module tt_um_dino(
     localparam GRAVITY_SCALE = 3750;
 
     localparam OBSTACLE_HEIGHT = 23;
-
     localparam OBSTACLE_SPEED = 6;
 
     // game input with synchronizer --------------------------------------------------------------
@@ -61,7 +60,6 @@ module tt_um_dino(
     wire game_reset = ui_sync[1];
     reg game_over;
     
-
     // jump edge detector ------------------------------------------------------------------------
     wire jmp_edge;
     reg jmp_edge_r;
@@ -93,7 +91,7 @@ module tt_um_dino(
 
     ball_controller #(
         .GROUND_Y(GROUND_Y),
-        .GRAVITY_SCALE(GRAVITY_SCALE) 
+        .GRAVITY_SCALE(GRAVITY_SCALE)
     ) u_bsc (
         .clk(clk),
         .rst_n(rst_n),
@@ -156,8 +154,6 @@ module tt_um_dino(
     score_display u_score (
         .x(x), 
         .y(y),
-        .start(game_reset),
-        .game_over(game_over),
         .thousands(score_thousands),
         .hundreds(score_hundreds), .tens(score_tens), .ones(score_ones),
         .pixel(score_pixel)
@@ -175,21 +171,16 @@ module tt_um_dino(
     );
 
     reg [1:0] cluster_size[0:1];
-    reg [1:0] obs_scaling [0:1];
 
     always @(posedge clk or negedge rst_n) begin
         if(!rst_n) begin
-            cluster_size[0] <= 2'b00;
-            cluster_size[1] <= 2'b10;
-            obs_scaling[0] <= 2'b11;
-            obs_scaling [1] <= 2'b01;
-        end else if(obstacle_x[0]==0) begin
-            cluster_size[0] <= rnd[15:14];
-            obs_scaling[0] <= rnd[13:12];
-        end else if(obstacle_x[1]==0) begin
-            cluster_size[1] <= rnd[11:10];
-            obs_scaling [1] <= rnd[1:0];
-        end
+          cluster_size[0] <= 2'b00;
+          cluster_size[1] <= 2'b10;
+          end
+        else if(obstacle_x[0]==0)
+          cluster_size[0] <= rnd[1:0];
+        else if(obstacle_x[1]==0)
+          cluster_size[1] <= rnd[1:0];
     end
     
     // obstacle logic -------------------------------------------------------------------------------------------------------------------
@@ -206,10 +197,10 @@ module tt_um_dino(
             obstacle_x[1] <= 10'd1023;
             obstacle_2_valid <= 1'b0;
         end else if (obs_tick && !game_over) begin
-            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? 10'd896 + {3'b000, rnd[9:3]} : obstacle_x[0]-1;
+            obstacle_x[0] <= (obstacle_x[0]==10'd0) ? 10'd896 + rnd[8:2] : obstacle_x[0]-1;
                 if(obstacle_x[0] == 10'd511)begin
                     obstacle_2_valid <= 1;
-                    obstacle_x[1] <= 10'd896 + {3'b000, rnd[8:2]};
+                    obstacle_x[1] <= 10'd896 + rnd[8:2];
                 end
                 if(obstacle_x[1] == 0)
                     obstacle_2_valid <= 0;
@@ -219,9 +210,9 @@ module tt_um_dino(
     end
     
     // obstacle display logic --------------------------------------------------------------------------------------------------------------
-    localparam OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
+    localparam OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT+1;
 
-    reg signed [10:0] dx [0:1];        
+    reg [10:0] dx [0:1];        
     reg [1:0] obstacle_pixel;
 
     reg [2:0] i;
@@ -233,12 +224,12 @@ module tt_um_dino(
         dx[0] = x-obstacle_x[0];
         dx[1] = x-obstacle_x[1];
 
-        if (y>=OBS_TOP && y<GROUND_Y) begin
+        if (y>=OBS_TOP && y<OBS_TOP+64) begin
             for (i=0; i<4; i=i+1) begin
                 for(j=0; j<2; j=j+1) begin
                     if (i <= {1'b0, cluster_size[j]})
-                        if ((((dx[j] + 32*$signed(i)) << obs_scaling[j]) < $signed(y)-OBS_TOP) && (((dx[j] + 32*$signed(i)) << obs_scaling[j]) > OBS_TOP-$signed(y)))
-                            obstacle_pixel[j[0]] = 1'b1;
+                        if (((dx[j][10:5] == 6'd0-i) && ({dx[j][4:0], 1'b0} <= y-OBS_TOP)) || ((dx[j][10:5] == 6'd63-i) && ({dx[j][4:0], 1'b0} + y-OBS_TOP >= 64)))
+                            obstacle_pixel[0] = 1'b1;
                 end
             end
         end
@@ -246,12 +237,12 @@ module tt_um_dino(
 
     // display logic -------------------------------------------------------------------------------------------------------------
     always @(*) begin
-        {R, G, B} = 6'b000000;
+        {R, G, B} = 6'b0;
         if(video_active) begin
             if(ball_pixel)
                 {R, G, B} = 6'b100000;
             else if(score_pixel)
-                {R, G, B} = 6'b000011;
+                {R, G, B} = 6'b000000;
             else if(score_bg) 
                 {R, G, B} = 6'b101000;
             else if(y>GROUND_Y)
