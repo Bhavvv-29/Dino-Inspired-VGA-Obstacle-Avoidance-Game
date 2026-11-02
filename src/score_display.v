@@ -1,8 +1,10 @@
 module score_display (
     input  wire [9:0] x, y,
+    input  wire       start, game_over,
     input  wire [3:0] thousands, hundreds, tens, ones,
     output wire       pixel
 );
+    // ---------------- score (unchanged) ----------------
     localparam X0 = 480, Y0 = 20;   // top-left of the 4-digit block
     localparam W = 20, H = 36, T = 4, GAP = 10;
 
@@ -49,5 +51,50 @@ module score_display (
 
     wire [6:0] hit = { top, rght & up, rght & lo, bot, left & lo, left & up, mid };
 
-    assign pixel = in_y && (in_th || in_h || in_t || in_o) && |(seg & hit);
+    wire score_pixel = in_y && (in_th || in_h || in_t || in_o) && |(seg & hit);
+
+    // ---------------- centre message: "START" / "YOU DIED" ----------------
+    // 32 px cells (cell = x[9:5]); glyph is 16 px wide centred in the cell (x[4:0] = 8..23)
+    // rows y = 224..255 (y[9:5] == 7)
+    reg [6:0] mseg;                         // {a,b,c,d,e,f,g}
+    always @(*) begin
+        mseg = 7'b0;
+        if (game_over) begin                // cells 6..13 : Y O U _ D I E D
+            case (x[9:5])
+                5'd6:  mseg = 7'b0111011;   // Y
+                5'd7:  mseg = 7'b1111110;   // O
+                5'd8:  mseg = 7'b0111110;   // U
+                5'd10: mseg = 7'b0111101;   // D
+                5'd11: mseg = 7'b0110000;   // I
+                5'd12: mseg = 7'b1001111;   // E
+                5'd13: mseg = 7'b0111101;   // D
+                default: mseg = 7'b0;
+            endcase
+        end else if (start) begin           // cells 7..11 : S T A R T
+            case (x[9:5])
+                5'd7:  mseg = 7'b1011011;   // S
+                5'd8:  mseg = 7'b0001111;   // t
+                5'd9:  mseg = 7'b1110111;   // A
+                5'd10: mseg = 7'b0000101;   // r
+                5'd11: mseg = 7'b0001111;   // t
+                default: mseg = 7'b0;
+            endcase
+        end
+    end
+
+    wire m_glyph = x[4] ^ x[3];             // x[4:0] in 8..23
+    wire m_top   = (y[4:2] == 3'd0);
+    wire m_bot   = (y[4:2] == 3'd7);
+    wire m_mid   = (y[4:1] == 4'd7) || (y[4:1] == 4'd8);   // rows 14..17
+    wire m_up    = ~y[4];
+    wire m_lo    =  y[4];
+    wire m_left  = ~x[4] & ~x[2];           // first 4 px of the glyph
+    wire m_rght  =  x[4] &  x[2];           // last 4 px of the glyph
+
+    wire [6:0] mhit = { m_top, m_rght & m_up, m_rght & m_lo, m_bot,
+                        m_left & m_lo, m_left & m_up, m_mid };
+
+    wire msg_pixel = (y[9:5] == 5'd7) && m_glyph && |(mseg & mhit);
+
+    assign pixel = score_pixel | msg_pixel;
 endmodule

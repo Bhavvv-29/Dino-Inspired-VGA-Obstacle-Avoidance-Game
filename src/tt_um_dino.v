@@ -6,13 +6,13 @@ module tt_um_dino(
     output wire [7:0] uio_oe,   // IOs: Enable path (active high: 0=input, 1=output)
     input  wire       ena,      // always 1 when the design is powered, so you can ignore it
     input  wire       clk,      // clock - 50Mhz
-    // output wire video_active,    // uncomment this for fpga
+    output wire video_active,    // uncomment this for fpga
     input  wire       rst_n     // reset_n - low to reset
 );
 
     // VGA signals
     wire hsync, vsync;
-    wire video_active;  // comment this out for fpga
+    // wire video_active;  // comment this out for fpga
     wire [9:0] x, y;
 
     reg [1:0] R, G, B;
@@ -61,14 +61,6 @@ module tt_um_dino(
     wire game_reset = ui_sync[1];
     reg game_over;
     
-    // game state display --------------------------------------------------------------------------
-    wire game_state_pixel;
-
-    game_state_display u_gsd(
-        .x(x), .y(y),
-        .game_over(game_over),
-        .pixel(game_state_pixel)
-    );
 
     // jump edge detector ------------------------------------------------------------------------
     wire jmp_edge;
@@ -164,6 +156,8 @@ module tt_um_dino(
     score_display u_score (
         .x(x), 
         .y(y),
+        .start(game_reset),
+        .game_over(game_over),
         .thousands(score_thousands),
         .hundreds(score_hundreds), .tens(score_tens), .ones(score_ones),
         .pixel(score_pixel)
@@ -252,14 +246,12 @@ module tt_um_dino(
 
     // display logic -------------------------------------------------------------------------------------------------------------
     always @(*) begin
-        {R, G, B} = 6'b0;
+        {R, G, B} = 6'b000000;
         if(video_active) begin
             if(ball_pixel)
                 {R, G, B} = 6'b100000;
             else if(score_pixel)
-                {R, G, B} = 6'b000000;
-            else if(game_state_pixel)
-                {R ,G ,B} = 6'b110000;
+                {R, G, B} = 6'b000011;
             else if(score_bg) 
                 {R, G, B} = 6'b101000;
             else if(y>GROUND_Y)
