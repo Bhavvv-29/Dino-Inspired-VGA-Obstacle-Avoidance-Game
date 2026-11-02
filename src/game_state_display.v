@@ -6,171 +6,139 @@ module game_state_display (
 
     localparam X0 = 224;
     localparam Y0 = 220;
-    localparam CHAR_W = 20;
-    localparam CHAR_H = 28;
-    localparam CHAR_GAP = 8;
-    localparam WORD_GAP = 12;
 
-    // Character starting X positions
-    localparam X_G = X0;
-    localparam X_A = X_G + CHAR_W + CHAR_GAP;
-    localparam X_M = X_A + CHAR_W + CHAR_GAP;
-    localparam X_E1 = X_M + CHAR_W + CHAR_GAP;
+    // Character start positions
+    localparam X_G  = X0;
+    localparam X_A  = X0 + 16;
+    localparam X_M  = X0 + 32;
+    localparam X_E1 = X0 + 48;
 
-    localparam X_O = X_E1 + CHAR_W + CHAR_GAP + WORD_GAP;
-    localparam X_V = X_O + CHAR_W + CHAR_GAP;
-    localparam X_E2 = X_V + CHAR_W + CHAR_GAP;
-    localparam X_R = X_E2 + CHAR_W + CHAR_GAP;
+    localparam X_O  = X0 + 76;
+    localparam X_V  = X0 + 92;
+    localparam X_E2 = X0 + 108;
+    localparam X_R  = X0 + 124;
 
-    wire [4:0] glyph_row;
+    wire active_y = (y >= Y0) && (y < Y0 + 20);
 
-    wire row0 = y >= Y0      && y < Y0+4;
-    wire row1 = y >= Y0+4    && y < Y0+8;
-    wire row2 = y >= Y0+8    && y < Y0+12;
-    wire row3 = y >= Y0+12   && y < Y0+16;
-    wire row4 = y >= Y0+16   && y < Y0+20;
-    wire row5 = y >= Y0+20   && y < Y0+24;
-    wire row6 = y >= Y0+24   && y < Y0+28;
+    wire row0 = y < Y0+4;
+    wire row1 = y >= Y0+4  && y < Y0+8;
+    wire row2 = y >= Y0+8  && y < Y0+12;
+    wire row3 = y >= Y0+12 && y < Y0+16;
+    wire row4 = y >= Y0+16;
 
-    reg [4:0] bitmap;
+    reg [2:0] glyph;
+    reg [9:0] char_x;
+    reg active_char;
 
     always @(*) begin
-        bitmap = 5'b00000;
+        glyph = 3'b000;
+        char_x = 0;
+        active_char = 1'b0;
 
-        // GAME
-        if (x >= X_G && x < X_G+20) begin
-            if      (row0) bitmap = 5'b01110;
-            else if (row1) bitmap = 5'b10001;
-            else if (row2) bitmap = 5'b10000;
-            else if (row3) bitmap = 5'b10111;
-            else if (row4) bitmap = 5'b10001;
-            else if (row5) bitmap = 5'b10001;
-            else if (row6) bitmap = 5'b01110;
+        if (x >= X_G && x < X_G+12) begin
+            char_x = x-X_G;
+            active_char = 1'b1;
+            case (1'b1)
+                row0: glyph = 3'b011;
+                row1: glyph = 3'b100;
+                row2: glyph = 3'b101;
+                row3: glyph = 3'b101;
+                row4: glyph = 3'b011;
+            endcase
         end
 
-        else if (x >= X_A && x < X_A+20) begin
-            if      (row0) bitmap = 5'b01110;
-            else if (row1) bitmap = 5'b10001;
-            else if (row2) bitmap = 5'b10001;
-            else if (row3) bitmap = 5'b11111;
-            else if (row4) bitmap = 5'b10001;
-            else if (row5) bitmap = 5'b10001;
-            else if (row6) bitmap = 5'b10001;
+        else if (x >= X_A && x < X_A+12) begin
+            char_x = x-X_A;
+            active_char = 1'b1;
+            case (1'b1)
+                row0: glyph = 3'b010;
+                row1: glyph = 3'b101;
+                row2: glyph = 3'b111;
+                row3: glyph = 3'b101;
+                row4: glyph = 3'b101;
+            endcase
         end
 
-        else if (x >= X_M && x < X_M+20) begin
-            if      (row0) bitmap = 5'b10001;
-            else if (row1) bitmap = 5'b11011;
-            else if (row2) bitmap = 5'b10101;
-            else if (row3) bitmap = 5'b10101;
-            else if (row4) bitmap = 5'b10001;
-            else if (row5) bitmap = 5'b10001;
-            else if (row6) bitmap = 5'b10001;
+        else if (x >= X_M && x < X_M+12) begin
+            char_x = x-X_M;
+            active_char = 1'b1;
+            case (1'b1)
+                row0: glyph = 3'b101;
+                row1: glyph = 3'b111;
+                row2: glyph = 3'b111;
+                row3: glyph = 3'b101;
+                row4: glyph = 3'b101;
+            endcase
         end
 
-        else if (x >= X_E1 && x < X_E1+20) begin
-            if      (row0) bitmap = 5'b11111;
-            else if (row1) bitmap = 5'b10000;
-            else if (row2) bitmap = 5'b10000;
-            else if (row3) bitmap = 5'b11110;
-            else if (row4) bitmap = 5'b10000;
-            else if (row5) bitmap = 5'b10000;
-            else if (row6) bitmap = 5'b11111;
+        else if (x >= X_E1 && x < X_E1+12) begin
+            char_x = x-X_E1;
+            active_char = 1'b1;
+            case (1'b1)
+                row0: glyph = 3'b111;
+                row1: glyph = 3'b100;
+                row2: glyph = 3'b110;
+                row3: glyph = 3'b100;
+                row4: glyph = 3'b111;
+            endcase
         end
 
-        // OVER
-        else if (x >= X_O && x < X_O+20) begin
-            if      (row0) bitmap = 5'b01110;
-            else if (row1) bitmap = 5'b10001;
-            else if (row2) bitmap = 5'b10001;
-            else if (row3) bitmap = 5'b10001;
-            else if (row4) bitmap = 5'b10001;
-            else if (row5) bitmap = 5'b10001;
-            else if (row6) bitmap = 5'b01110;
+        else if (x >= X_O && x < X_O+12) begin
+            char_x = x-X_O;
+            active_char = 1'b1;
+            case (1'b1)
+                row0: glyph = 3'b010;
+                row1: glyph = 3'b101;
+                row2: glyph = 3'b101;
+                row3: glyph = 3'b101;
+                row4: glyph = 3'b010;
+            endcase
         end
 
-        else if (x >= X_V && x < X_V+20) begin
-            if      (row0) bitmap = 5'b10001;
-            else if (row1) bitmap = 5'b10001;
-            else if (row2) bitmap = 5'b10001;
-            else if (row3) bitmap = 5'b10001;
-            else if (row4) bitmap = 5'b10001;
-            else if (row5) bitmap = 5'b01010;
-            else if (row6) bitmap = 5'b00100;
+        else if (x >= X_V && x < X_V+12) begin
+            char_x = x-X_V;
+            active_char = 1'b1;
+            case (1'b1)
+                row0: glyph = 3'b101;
+                row1: glyph = 3'b101;
+                row2: glyph = 3'b101;
+                row3: glyph = 3'b101;
+                row4: glyph = 3'b010;
+            endcase
         end
 
-        else if (x >= X_E2 && x < X_E2+20) begin
-            if      (row0) bitmap = 5'b11111;
-            else if (row1) bitmap = 5'b10000;
-            else if (row2) bitmap = 5'b10000;
-            else if (row3) bitmap = 5'b11110;
-            else if (row4) bitmap = 5'b10000;
-            else if (row5) bitmap = 5'b10000;
-            else if (row6) bitmap = 5'b11111;
+        else if (x >= X_E2 && x < X_E2+12) begin
+            char_x = x-X_E2;
+            active_char = 1'b1;
+            case (1'b1)
+                row0: glyph = 3'b111;
+                row1: glyph = 3'b100;
+                row2: glyph = 3'b110;
+                row3: glyph = 3'b100;
+                row4: glyph = 3'b111;
+            endcase
         end
 
-        else if (x >= X_R && x < X_R+20) begin
-            if      (row0) bitmap = 5'b11110;
-            else if (row1) bitmap = 5'b10001;
-            else if (row2) bitmap = 5'b10001;
-            else if (row3) bitmap = 5'b11110;
-            else if (row4) bitmap = 5'b10100;
-            else if (row5) bitmap = 5'b10010;
-            else if (row6) bitmap = 5'b10001;
+        else if (x >= X_R && x < X_R+12) begin
+            char_x = x-X_R;
+            active_char = 1'b1;
+            case (1'b1)
+                row0: glyph = 3'b110;
+                row1: glyph = 3'b101;
+                row2: glyph = 3'b110;
+                row3: glyph = 3'b101;
+                row4: glyph = 3'b101;
+            endcase
         end
     end
 
-    // Decode the five horizontal pixel columns
-    wire c0 = (x >= X_G     && x < X_G+4)     ||
-              (x >= X_A     && x < X_A+4)     ||
-              (x >= X_M     && x < X_M+4)     ||
-              (x >= X_E1    && x < X_E1+4)    ||
-              (x >= X_O     && x < X_O+4)     ||
-              (x >= X_V     && x < X_V+4)     ||
-              (x >= X_E2    && x < X_E2+4)    ||
-              (x >= X_R     && x < X_R+4);
+    wire col0 = char_x < 4;
+    wire col1 = char_x >= 4 && char_x < 8;
+    wire col2 = char_x >= 8;
 
-    wire c1 = (x >= X_G+4  && x < X_G+8)  ||
-              (x >= X_A+4  && x < X_A+8)  ||
-              (x >= X_M+4  && x < X_M+8)  ||
-              (x >= X_E1+4 && x < X_E1+8) ||
-              (x >= X_O+4  && x < X_O+8)  ||
-              (x >= X_V+4  && x < X_V+8)  ||
-              (x >= X_E2+4 && x < X_E2+8) ||
-              (x >= X_R+4  && x < X_R+8);
-
-    wire c2 = (x >= X_G+8  && x < X_G+12)  ||
-              (x >= X_A+8  && x < X_A+12)  ||
-              (x >= X_M+8  && x < X_M+12)  ||
-              (x >= X_E1+8 && x < X_E1+12) ||
-              (x >= X_O+8  && x < X_O+12)  ||
-              (x >= X_V+8  && x < X_V+12)  ||
-              (x >= X_E2+8 && x < X_E2+12) ||
-              (x >= X_R+8  && x < X_R+12);
-
-    wire c3 = (x >= X_G+12  && x < X_G+16)  ||
-              (x >= X_A+12  && x < X_A+16)  ||
-              (x >= X_M+12  && x < X_M+16)  ||
-              (x >= X_E1+12 && x < X_E1+16) ||
-              (x >= X_O+12  && x < X_O+16)  ||
-              (x >= X_V+12  && x < X_V+16)  ||
-              (x >= X_E2+12 && x < X_E2+16) ||
-              (x >= X_R+12  && x < X_R+16);
-
-    wire c4 = (x >= X_G+16  && x < X_G+20)  ||
-              (x >= X_A+16  && x < X_A+20)  ||
-              (x >= X_M+16  && x < X_M+20)  ||
-              (x >= X_E1+16 && x < X_E1+20) ||
-              (x >= X_O+16  && x < X_O+20)  ||
-              (x >= X_V+16  && x < X_V+20)  ||
-              (x >= X_E2+16 && x < X_E2+20) ||
-              (x >= X_R+16  && x < X_R+20);
-
-    assign pixel = game_over &&
-                   ((c0 && bitmap[4]) ||
-                    (c1 && bitmap[3]) ||
-                    (c2 && bitmap[2]) ||
-                    (c3 && bitmap[1]) ||
-                    (c4 && bitmap[0]));
+    assign pixel = game_over && active_y && active_char &&
+                   ((col0 && glyph[2]) ||
+                    (col1 && glyph[1]) ||
+                    (col2 && glyph[0]));
 
 endmodule
