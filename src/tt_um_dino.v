@@ -148,7 +148,7 @@ module tt_um_dino(
  
     wire score_pixel, state_display;
 
-    wire win = {score_hundreds, score_tens, score_ones} == 12'h002;
+    wire win = {score_hundreds, score_tens, score_ones} == 12'h999;
 
     score_display u_score (
         .x(x), 
