@@ -115,7 +115,7 @@ module tt_um_dino(
 
     // scoreboard ---------------------------------------------------------------------------------
     wire score_inc = obs_tick && !game_over && (obstacle_x[0]==BALL_X-80 | obstacle_x[1]==BALL_X-80);
-    reg [3:0] score_ones, score_tens, score_hundreds, score_thousands;
+    reg [3:0] score_ones, score_tens, score_hundreds;
 
 
     always @(posedge clk or negedge rst_n) begin
@@ -123,12 +123,10 @@ module tt_um_dino(
             score_ones <= 0;
             score_tens <= 0;
             score_hundreds <= 0;
-            score_thousands <= 0;
         end else if(game_reset) begin
             score_ones <= 0;
             score_tens <= 0;
             score_hundreds <= 0;
-            score_thousands <= 0;
         end else if (score_inc) begin
             if (score_ones == 9) begin
                 score_ones <= 0;
@@ -136,7 +134,6 @@ module tt_um_dino(
                     score_tens <= 0;
                     if (score_hundreds == 9) begin
                         score_hundreds  <= 0;
-                        score_thousands <= (score_thousands == 9) ? 4'd0 : score_thousands + 1'b1;
                     end else begin
                         score_hundreds <= score_hundreds + 1'b1;
                     end
@@ -151,12 +148,14 @@ module tt_um_dino(
  
     wire score_pixel, state_display;
 
+    wire win = {score_hundreds, score_tens, score_ones} == 12'h002;
+
     score_display u_score (
         .x(x), 
         .y(y),
         .start(game_reset),
         .game_over(game_over),
-        .thousands(score_thousands),
+        .win(win),
         .hundreds(score_hundreds), .tens(score_tens), .ones(score_ones),
         .pixel(score_pixel),
         .state_display(state_display)
@@ -237,58 +236,17 @@ module tt_um_dino(
     end
 
     // display logic -------------------------------------------------------------------------------------------------------------
-    reg [8:0] bg_cnt;
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            bg_cnt <= 0;
-        else if (x==0 && y==0 && !game_over)
-            bg_cnt <= bg_cnt + 1'b1;
-    end
-
-    wire [6:0] cx = x[6:0] + bg_cnt[8:2];
-    wire [5:0] hx = x[5:0] + bg_cnt[8:3];
-    wire [4:0] ha = hx[4:0] ^ {5{~hx[5]}};
-
-    wire moon = (x[9:5]==5'd2) && (y[9:5]==5'd1) && !(~(x[4]^x[3]) && ~(y[4]^y[3]));
-
-    wire cloud = ((y[9:5]==5'd3 && !cx[6]) || (y[9:5]==5'd5 && cx[6])) &&
-                 (((y[4:3]==2'd0) && (cx[5]^cx[4])) ||
-                  ((y[4]^y[3]) && cx[5:3]!=3'd0 && cx[5:3]!=3'd7));
-
-    wire hill = (y[9:5]==5'd11 && ha < y[4:0]) || (y[9:5]==5'd12);
-
-    wire star = (y[9:7]==3'd0) && (x[3:1]==3'd2) && (y[3:1]==3'd4) && ((x[7:4]^y[6:3])==4'd0);
-
-    reg [5:0] sky;
-    always @(*) begin
-        case (y[8:5])
-            4'd0:    sky = 6'b000001;
-            4'd1,
-            4'd2:    sky = 6'b000010;
-            4'd3,
-            4'd4:    sky = 6'b010010;
-            4'd5:    sky = 6'b010011;
-            4'd6:    sky = 6'b100011;
-            4'd7:    sky = 6'b100111;
-            4'd8:    sky = 6'b100110;
-            4'd9:    sky = 6'b110110;
-            4'd10:   sky = 6'b110101;
-            default: sky = 6'b111001;
-        endcase
-    end
-
-    always @(*) begin
+     always @(*) begin
         {R, G, B} = 6'b0;
-        if (video_active) begin
-            if      (ball_pixel)       {R, G, B} = 6'b001111;
-            else if (score_pixel)      {R, G, B} = state_display ? 6'b111100 : 6'b111111;
-            else if (y > GROUND_Y)     {R, G, B} = 6'b000101;
-            else if (|obstacle_pixel)  {R, G, B} = 6'b001100;
-            else if (moon)             {R, G, B} = 6'b111110;
-            else if (cloud)            {R, G, B} = 6'b111010;
-            else if (hill)             {R, G, B} = 6'b010001;
-            else if (star)             {R, G, B} = 6'b111111;
-            else                       {R, G, B} = sky;
+        if(video_active) begin
+            if(ball_pixel)
+                {R, G, B} = 6'b100000;
+            else if(score_pixel) 
+                {R, G, B} = state_display ? 6'b101000 : 6'b111111;
+            else if(y>GROUND_Y)
+                {R, G, B} = 6'b010100;
+            else if(|obstacle_pixel)
+                {R, G, B} = 6'b101010;
         end
     end
 
@@ -298,7 +256,7 @@ module tt_um_dino(
             game_over <= 1'b0;
         else if (game_reset)
             game_over <= 1'b0;
-        else if ({score_thousands, score_hundreds, score_tens, score_ones} == 16'h9999)
+        else if (win)
             game_over <= 1'b1;
         else if (video_active && ball_pixel && (|obstacle_pixel))
             game_over <= 1'b1;
