@@ -3,7 +3,7 @@
     module ball_controller #(
         parameter GROUND_Y=400,
         parameter GRAVITY_SCALE=2000,
-        parameter signed BALL_INITIAL_SPEED=-13
+        parameter signed [9:0] BALL_INITIAL_SPEED=-13
     )(
         input wire clk, rst_n, jmp_in, tick, stop,
         output reg [9:0] ball_y

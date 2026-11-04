@@ -44,9 +44,9 @@ module tt_um_dino(
 
     // game parameters ---------------------------------------------------------------------------
     localparam BALL_X = 100;
-    localparam MAX_SCORE = 999;
+    localparam MAX_SCORE = 12'h999;
 
-    localparam signed BALL_INITIAL_SPEED = -13;
+    localparam signed [9:0] BALL_INITIAL_SPEED = -13;
 
     localparam GROUND_Y = 400;
     localparam GRAVITY_SCALE = 3750;
@@ -296,6 +296,7 @@ module tt_um_dino(
 
     // display colouring logic -----------------------------------------------------------------------------------------------------
     always @(*) begin
+        {R, G, B} = 6'b000000;
         if(video_active) begin
             if(ball_pixel)
                 {R, G, B} = 6'b100000;
@@ -303,12 +304,10 @@ module tt_um_dino(
                 {R, G, B} = 6'b111111;
             else if(state_display_pixel)
                 {R, G, B} = 6'b101000;
-            else if(y>GROUND_Y)
-                {R, G, B} = 6'b010100;
             else if(|obstacle_pixel)
                 {R, G, B} = 6'b101010;
-            else 
-                {R, G, B} = 6'b000000;
+            else if(y>GROUND_Y)
+                {R, G, B} = 6'b010100;
         end
     end
 

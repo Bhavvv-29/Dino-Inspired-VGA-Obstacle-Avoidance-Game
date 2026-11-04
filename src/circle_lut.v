@@ -54,6 +54,6 @@ module circle_lut #(
     end
 
     // pixel (x,y) is inside the circle, if dy is less than the radius, and dx is less than the width
-    assign inside_circle = (dy <= BALL_R) && (dx <= width);
+    assign inside_circle = (dy <= BALL_R) && (dx <= {5'd0, width});
 
 endmodule
