@@ -1,8 +1,10 @@
+`default_nettype none
+
 module tick_gen #(
     parameter OBSTACLE_SPEED=7
 )(
-    input clk, rst_n, sync,
-    output ball_tick, obs_tick
+    input wire clk, rst_n, sync,
+    output wire ball_tick, obs_tick
 );  
 
     localparam COUNT_WIDTH = 21;
@@ -15,10 +17,12 @@ module tick_gen #(
             count <= 0;
         else
             count <= count+1;
-    end
+    end 
     
-    assign ball_tick = (count=={COUNT_WIDTH{1'b1}});
-    assign obs_tick = (count[COUNT_WIDTH-OBSTACLE_SPEED:0] == {(COUNT_WIDTH-OBSTACLE_SPEED+1){1'b1}});
+    assign ball_tick = (count=={COUNT_WIDTH{1'b1}});   // simple counter based pulse generator
+
+    // obstacle tick occurs more frequently as the comparison is only done for the upper bits. hence, the actual obstacle speed scales exponentially with the OBSTACLE_SPEED parameter
+    assign obs_tick = (count[COUNT_WIDTH-OBSTACLE_SPEED:0] == {(COUNT_WIDTH-OBSTACLE_SPEED+1){1'b1}});  
 endmodule
 
             

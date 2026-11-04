@@ -1,3 +1,5 @@
+`default_nettype none
+
 module hvsync_generator (
     input  wire       clk,
     input  wire       rst_n,
