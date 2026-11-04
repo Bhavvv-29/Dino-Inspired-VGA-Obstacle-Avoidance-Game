@@ -280,6 +280,9 @@ module tt_um_dino(
 
         dx_with_offset = 0;          
 
+        i=0;
+        j=0;
+        
         if (dy<=OBSTACLE_HEIGHT) begin
             for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
                 for(i=0; i<4; i=i+1) begin  // iteration through each spike in the current cluster j, which basically means obstacle(j)
