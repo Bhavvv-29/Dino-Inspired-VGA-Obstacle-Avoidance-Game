@@ -53,6 +53,8 @@ module tt_um_dino(
 
     localparam OBSTACLE_HEIGHT = 23;
     localparam OBSTACLE_SPEED = 6;
+    localparam OBSTACLE_SEPERATION = 32;
+    
     localparam OBSTACLE1_SPAWN_THRESHOLD = 511;
     localparam OBS_RESPAWN_X = 1023;
     localparam OBS_X_FOR_SCORE_INC = 20;
@@ -90,7 +92,7 @@ module tt_um_dino(
           jmp_edge_r <= jmp_in;
     end
 
-    assign jmp_edge = (jmp_in && !jmp_edge_r);  ----------------------------
+    assign jmp_edge = (jmp_in && !jmp_edge_r);  
 
     // actual tick generator
     wire ball_tick, obs_tick;
@@ -144,7 +146,7 @@ module tt_um_dino(
             score_ones <= 0;
             score_tens <= 0;
             score_hundreds <= 0;
-        end else if(game_reset) begin
+        end else if(game_reset_in) begin
             score_ones <= 0;
             score_tens <= 0;
             score_hundreds <= 0;
@@ -178,7 +180,7 @@ module tt_um_dino(
     hud u_hud (
         .x(x), 
         .y(y),
-        .start(game_reset),
+        .start(game_reset_in),
         .game_over(game_over),
         .win(win),
         .hundreds(score_hundreds), .tens(score_tens), .ones(score_ones),
@@ -221,7 +223,7 @@ module tt_um_dino(
             obstacle_x[0] <= OBS_RESPAWN_X; 
             obstacle_x[1] <= OBS_RESPAWN_X;
             obstacle_1_valid <= 1'b0;              // obstacle1 spawning is turned off after reset
-        end else if (game_reset) begin
+        end else if (game_reset_in) begin
             obstacle_x[0] <= OBS_RESPAWN_X;
             obstacle_x[1] <= OBS_RESPAWN_X;
             obstacle_1_valid <= 1'b0;
