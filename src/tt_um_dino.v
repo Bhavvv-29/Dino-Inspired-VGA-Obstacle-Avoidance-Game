@@ -279,9 +279,6 @@ module tt_um_dino(
         dx[1] = x-obstacle_x[1];
 
         dx_with_offset = 0;          
-
-        i=0;
-        j=0;
         
         if (dy<=OBSTACLE_HEIGHT) begin
             for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
