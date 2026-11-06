@@ -55,7 +55,6 @@ module tt_um_dino(
 
     localparam OBSTACLE_HEIGHT = 23;
     localparam OBSTACLE_SPEED = 6;
-    localparam OBSTACLE_SEPERATION = 32;
     
     localparam OBSTACLE1_SPAWN_THRESHOLD = 511;
     localparam OBS_RESPAWN_X = 1023;
@@ -273,36 +272,31 @@ module tt_um_dino(
 
     integer j;
 
+    reg signed [12:0] a0, a1, a2, a3;   // 2*(dx+offset), 13 bits is enough (range +-2046)
+
     always @(*) begin
         obstacle_pixel = 2'b00;
 
-        dx[0] = x-obstacle_x[0];    
+        dx[0] = x-obstacle_x[0];
         dx[1] = x-obstacle_x[1];
 
+        a0 = 0; a1 = 0; a2 = 0; a3 = 0;   // defaults, no latches
+
         if (dy<=OBSTACLE_HEIGHT) begin
-            for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)
+            for (j=0; j<2; j=j+1) begin
+                a0 = 2*(dx[j]+0);
+                a1 = 2*(dx[j]+32);
+                a2 = 2*(dx[j]+64);
+                a3 = 2*(dx[j]+96);
 
-                // base spike in the obstacle (offset=0px)
-                if ( (dy > 2*(dx[j]+0)) && (dy > -(2*(dx[j]+0))))  
+                if ( (dy > a0) && (dy > -a0) )
                     obstacle_pixel[j] = 1'b1;
-
-                // extra spike 1 (offset=32px)
-                if (cluster_size[j]>=1) begin   // checks if the spike actually exists in the cluster based on the random value
-                    if ( (dy > 2*(dx[j]+32)) && (dy > -(2*(dx[j]+32)))) // above 2 equations are implemented here, with offsets for multiple spikes per cluster
-                        obstacle_pixel[j] = 1'b1;
-                end
-
-                // extra spike 2 (offset=64px)
-                   if (cluster_size[j]>=2) begin
-                    if ( (dy > 2*(dx[j]+64)) && (dy > -(2*(dx[j]+64))))
-                        obstacle_pixel[j] = 1'b1;
-                end
-
-                // extra spike 3 (offset=96px)
-                if (cluster_size[j]>=3) begin
-                    if ( (dy > 2*(dx[j]+96)) && (dy > -(2*(dx[j]+96))))
-                        obstacle_pixel[j] = 1'b1;
-                end
+                if (cluster_size[j]>=1 && (dy > a1) && (dy > -a1))
+                    obstacle_pixel[j] = 1'b1;
+                if (cluster_size[j]>=2 && (dy > a2) && (dy > -a2))
+                    obstacle_pixel[j] = 1'b1;
+                if (cluster_size[j]>=3 && (dy > a3) && (dy > -a3))
+                    obstacle_pixel[j] = 1'b1;
             end
         end
     end
