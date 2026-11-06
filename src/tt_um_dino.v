@@ -271,7 +271,7 @@ module tt_um_dino(
 
     reg [1:0] obstacle_pixel;
 
-    integer i, j;
+    integer j;
 
     always @(*) begin
         obstacle_pixel = 2'b00;
@@ -279,13 +279,29 @@ module tt_um_dino(
         dx[0] = x-obstacle_x[0];    
         dx[1] = x-obstacle_x[1];
 
-        if(dy<=OBSTACLE_HEIGHT) begin
-            for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
-                for(i=0; i<4; i=i+1) begin  // iteration through each spike in the current cluster j, which basically means obstacle(j)
-                    if (i<=cluster_size[j]) begin  // checks if the spike actually exists in the cluster based on the random value
-                        if ( (dy > 2*(dx[j]+($signed(i[10:0])*OBSTACLE_SEPERATION))) && (dy > -(2*(dx[j]+($signed(i[10:0])*OBSTACLE_SEPERATION)))))    // above equations are implemented here
-                            obstacle_pixel[j] = 1'b1;
-                    end
+        if (dy<=OBSTACLE_HEIGHT) begin
+            for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)
+
+                // base spike in the obstacle (offset=0px)
+                if ( (dy > 2*(dx[j]+0)) && (dy > -(2*(dx[j]+0))))  
+                    obstacle_pixel[j] = 1'b1;
+
+                // extra spike 1 (offset=32px)
+                if (cluster_size[j]>=1) begin   // checks if the spike actually exists in the cluster based on the random value
+                    if ( (dy > 2*(dx[j]+32)) && (dy > -(2*(dx[j]+32)))) // above 2 equations are implemented here, with offsets for multiple spikes per cluster
+                        obstacle_pixel[j] = 1'b1;
+                end
+
+                // extra spike 2 (offset=64px)
+                   if (cluster_size[j]>=2) begin
+                    if ( (dy > 2*(dx[j]+64)) && (dy > -(2*(dx[j]+64))))
+                        obstacle_pixel[j] = 1'b1;
+                end
+
+                // extra spike 3 (offset=96px)
+                if (cluster_size[j]>=3) begin
+                    if ( (dy > 2*(dx[j]+96)) && (dy > -(2*(dx[j]+96))))
+                        obstacle_pixel[j] = 1'b1;
                 end
             end
         end
