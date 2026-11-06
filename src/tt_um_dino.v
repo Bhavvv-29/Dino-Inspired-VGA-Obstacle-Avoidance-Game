@@ -22,7 +22,6 @@ module tt_um_dino(
     assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
 
     // Unused outputs assigned to 0.
-    assign uio_out = {7'b0, video_active};
     assign uio_oe  = 0;
 
     // Unused inputs
@@ -40,7 +39,10 @@ module tt_um_dino(
     );
     
     // FOR FPGA ONLY, COMMENT OUT FOR ACTUAL IMPLEMENTATION --------------------------------------
-    // assign uio_out[0] = video_active;
+    // assign uio_out = {7'b0, video_active};
+
+    // FOR ASIC ONLY, COMMENT OUT FOR FPGA
+    assign uio_out = 0;
 
     // game parameters ---------------------------------------------------------------------------
     localparam BALL_X = 100;
