@@ -279,11 +279,13 @@ module tt_um_dino(
         dx[0] = x-obstacle_x[0];    
         dx[1] = x-obstacle_x[1];
 
-        for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
-            for(i=0; i<4; i=i+1) begin  // iteration through each spike in the current cluster j, which basically means obstacle(j)
-                if (dy<=OBSTACLE_HEIGHT && i<=cluster_size[j]) begin  // checks if the spike actually exists in the cluster based on the random value
-                    if ( (dy > 2*(dx[j]+($signed(i[10:0])*OBSTACLE_SEPERATION))) && (dy > -(2*(dx[j]+($signed(i[10:0])*OBSTACLE_SEPERATION)))))    // above equations are implemented here
-                        obstacle_pixel[0] = 1'b1;
+        if(dy<=OBSTACLE_HEIGHT) begin
+            for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
+                for(i=0; i<4; i=i+1) begin  // iteration through each spike in the current cluster j, which basically means obstacle(j)
+                    if (i<=cluster_size[j]) begin  // checks if the spike actually exists in the cluster based on the random value
+                        if ( (dy > 2*(dx[j]+($signed(i[10:0])*OBSTACLE_SEPERATION))) && (dy > -(2*(dx[j]+($signed(i[10:0])*OBSTACLE_SEPERATION)))))    // above equations are implemented here
+                            obstacle_pixel[j] = 1'b1;
+                    end
                 end
             end
         end
