@@ -22,7 +22,7 @@ module tt_um_dino(
     assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
 
     // Unused outputs assigned to 0.
-    assign uio_out = 0;
+    assign uio_out = {7'b0, video_active};
     assign uio_oe  = 0;
 
     // Unused inputs
@@ -253,22 +253,20 @@ module tt_um_dino(
     localparam [10:0] OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
 
     /* spikes(implemented with a triangle) can be formed by the area "under" 2 intersecting lines. we choose the lines:
-        -> y=2x
-        -> y=-2x
-        here for each triangle. this gives a simple isosceles triangle with slope 2.
+            -> y=2x
+            -> y=-2x
+            here for each triangle. this gives a simple isosceles triangle with slope 2.
 
-    however, in vga pixel rendering, the y value increases as we go from top to bottom. hence we must invert the "under" condition and check if y>2x or y>-2x.
-    hence, our equations become:
-        -> y>2x
-        -> y>-2x
-    
-    now by varying x with an offset and moving the offset around, we can move the triangle around or add multiple triangles that move along together.
-    */
+        however, in vga pixel rendering, the y value increases as we go from top to bottom. hence we must invert the "under" condition and check if y>2x or y>-2x.
+        hence, our equations become:
+            -> y>2x
+            -> y>-2x
+        now by varying x with an offset and moving the offset around, we can move the triangle around or add multiple triangles that move along together.
+        */
 
     reg signed [10:0] dx [0:1];  // x-obstacle_x for both obstacle0 and obstacle1
     wire signed [11:0] dy = $signed({2'b0, y})-$signed(OBS_TOP); // distance to the OBS_TOP y-level from the current y value    
 
-    reg signed [11:0] dx_with_offset;  // distance from current pixel's x value to the center of the current triangle being written
     reg [1:0] obstacle_pixel;
 
     integer i, j;
@@ -279,14 +277,10 @@ module tt_um_dino(
         dx[0] = x-obstacle_x[0];    
         dx[1] = x-obstacle_x[1];
 
-        dx_with_offset = 0;          
-        
         for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
             for(i=0; i<4; i=i+1) begin  // iteration through each spike in the current cluster j, which basically means obstacle(j)
-                if (dy<=OBSTACLE_HEIGHT && i<=cluster_size[j]) begin            // checks if the spike actually exists in the cluster based on the random value
-
-                    dx_with_offset = dx[j]+(i[10:0]*OBSTACLE_SEPERATION);       // shift current triangle left by OBSTACLE_SEPERATION*i pixels (to print a cluster)
-                    if ( (dy > 2*dx_with_offset) && (dy > -(2*dx_with_offset)))    // above equations are implemented here
+                if (dy<=OBSTACLE_HEIGHT && i<=cluster_size[j]) begin  // checks if the spike actually exists in the cluster based on the random value
+                    if ( (dy > 2*(dx[j]+($signed(i[10:0])*OBSTACLE_SEPERATION))) && (dy > -(2*(dx[j]+($signed(i[10:0])*OBSTACLE_SEPERATION)))))    // above equations are implemented here
                         obstacle_pixel[0] = 1'b1;
                 end
             end
