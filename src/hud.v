@@ -1,9 +1,8 @@
 module hud (
     input  wire [9:0] x, y,
-    input  wire       start, game_over, win,
+    input  wire start, game_over, win,
     input  wire [3:0] hundreds, tens, ones,
-    output wire       score_pixel,            // 1 only on scoreboard glyph pixels
-    output wire       state_display_pixel     // 1 only on message glyph pixels
+    output wire score_pixel, state_display_pixel
 );
     localparam X0 = 510, Y_SCORE = 20;   // score block (3 digits, right edge at 590)
     localparam Y_MSG = 222;              // message rows: 240 - H/2
@@ -16,22 +15,20 @@ module hud (
     wire in_y = (y >= Y0) && (y < Y0 + H);
     wire [9:0] ly = y - Y0;
 
-    // ---------------- score position check ----------------
-    wire in_h  = (x >= X0)           && (x < X0 + W);
-    wire in_t  = (x >= X0+(W+GAP))   && (x < X0 + 2*W + GAP);
+    // score position check ------------------------------------------------------------------------------------
+    wire in_h  = (x >= X0) && (x < X0 + W);
+    wire in_t  = (x >= X0+(W+GAP)) && (x < X0 + 2*W + GAP);
     wire in_o  = (x >= X0+2*(W+GAP)) && (x < X0 + 3*W + 2*GAP);
 
-    wire [9:0] lx_s = in_h  ? (x - X0) :
-                      in_t  ? (x - (X0 + (W + GAP))) :
-                              (x - (X0 + 2*(W + GAP)));
-    wire [3:0] digit_s = in_h ? hundreds :
-                         in_t ? tens     : ones;
+    wire [9:0] lx_s = in_h ? (x - X0) : in_t ? (x - (X0 + (W + GAP))) : (x - (X0 + 2*(W + GAP)));
+    wire [3:0] digit_s = in_h ? hundreds : in_t ? tens : ones;
 
-    // ---------------- message position check (separate) ----------------
+    // gamestate position check --------------------------------------------------------------------------------
     // 32 px cells, cell = x[9:5], local x = x[4:0], glyph is the first W=20 px of the cell
-    // codes: 0=O 1=I 4=Y/y 5=S 10=E 11=D 12=r 13=t 14=A 15=U 16=n 17=W
+    // codes: 0=O 1=I 5=S 10=E 11=D 12=r 13=t 14=A 15=U 16=n 17=y
     reg [4:0] digit_m;
-    reg       valid_m;
+    reg valid_m;
+
     always @(*) begin
         digit_m = 5'd0;
         valid_m = 1'b1;
@@ -68,10 +65,9 @@ module hud (
     end
 
     // ---------------- select, then shared 7-segment logic ----------------
-    wire [9:0] lx    = msg_row ? {5'b0, x[4:0]} : lx_s;
-    wire [4:0] digit = msg_row ? digit_m        : {1'b0, digit_s};
-    wire       in_x  = msg_row ? (valid_m && x[4:0] < W)
-                               : (in_h || in_t || in_o);
+    wire [9:0] lx = msg_row ? {5'b0, x[4:0]} : lx_s;
+    wire [4:0] digit = msg_row ? digit_m : {1'b0, digit_s};
+    wire in_x  = msg_row ? (valid_m && x[4:0] < W) : (in_h || in_t || in_o);
 
     // segments {a,b,c,d,e,f,g}
     reg [6:0] seg;
@@ -99,19 +95,19 @@ module hud (
         endcase
     end
 
-    wire top  = ly < T;
-    wire bot  = ly >= H - T;
-    wire mid  = (ly >= H/2 - T/2) && (ly < H/2 + T/2);
-    wire up   = ly < H/2;
-    wire lo   = ly >= H/2;
+    wire top = ly < T;
+    wire bot = ly >= H-T;
+    wire mid = (ly >= H/2 - T/2) && (ly < H/2 + T/2);
+    wire up = ly < H/2;
+    wire lo = ly >= H/2;
     wire left = lx < T;
     wire rght = lx >= W - T;
 
-    wire [6:0] hit = { top, rght & up, rght & lo, bot, left & lo, left & up, mid };
+    wire [6:0] hit = {top, rght & up, rght & lo, bot, left & lo, left & up, mid};
 
     // one glyph pixel, routed to exactly one output by row
     wire glyph = in_y && in_x && |(seg & hit);
 
-    assign score_pixel         = glyph & ~msg_row;
-    assign state_display_pixel = glyph &  msg_row;
+    assign score_pixel = glyph & ~msg_row;
+    assign state_display_pixel = glyph & msg_row;
 endmodule

@@ -96,6 +96,9 @@ module tt_um_dino(
 
     // actual tick generator
     wire ball_tick, obs_tick;
+    wire [9:0] ball_y;
+
+    reg [9:0] obstacle_x [0:1]; // x coordinate of the center of the base triangle (right most triangle) in a cluster (for obstacle spikes)
 
     tick_gen #(
         .OBSTACLE_SPEED(OBSTACLE_SPEED)
@@ -108,7 +111,6 @@ module tt_um_dino(
     );
 
     // ball physics engine (inputs: jump signal, and game over check; outputs: ball's y position)-----------------------------------
-    wire [9:0] ball_y;
 
     ball_controller #(
         .GROUND_Y(GROUND_Y),
@@ -215,7 +217,6 @@ module tt_um_dino(
     end
     
     // obstacle physics (obstacle0 and obstacle1)---------------------------------------------------------------------------------------
-    reg [9:0] obstacle_x [0:1]; // x coordinate of the center of the base triangle (right most triangle) in a cluster
     reg obstacle_1_valid;
 
     always @(posedge clk or negedge rst_n) begin
@@ -251,7 +252,7 @@ module tt_um_dino(
     // obstacle rendering logic --------------------------------------------------------------------------------------------------------------
     localparam [10:0] OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
 
-     /* spikes(implemented with a triangle) can be formed by the area "under" 2 intersecting lines. we choose the lines:
+    /* spikes(implemented with a triangle) can be formed by the area "under" 2 intersecting lines. we choose the lines:
         -> y=2x
         -> y=-2x
         here for each triangle. this gives a simple isosceles triangle with slope 2.
