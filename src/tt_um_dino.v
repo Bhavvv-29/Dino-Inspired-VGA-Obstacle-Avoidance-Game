@@ -280,15 +280,13 @@ module tt_um_dino(
 
         dx_with_offset = 0;          
         
-        if (dy<=OBSTACLE_HEIGHT) begin
-            for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
-                for(i=0; i<4; i=i+1) begin  // iteration through each spike in the current cluster j, which basically means obstacle(j)
-                    if (i <= cluster_size[j]) begin  // checks if the spike actually exists in the cluster based on the random value
+        for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
+            for(i=0; i<4; i=i+1) begin  // iteration through each spike in the current cluster j, which basically means obstacle(j)
+                if (dy<=OBSTACLE_HEIGHT && i<=cluster_size[j]) begin            // checks if the spike actually exists in the cluster based on the random value
 
-                        dx_with_offset = dx[j]+(i[10:0]*OBSTACLE_SEPERATION);       // shift current triangle left by OBSTACLE_SEPERATION*i pixels (to print a cluster)
-                        if ( (dy > 2*dx_with_offset) && (dy > -(2*dx_with_offset)))    // above equations are implemented here
-                            obstacle_pixel[0] = 1'b1;
-                    end
+                    dx_with_offset = dx[j]+(i[10:0]*OBSTACLE_SEPERATION);       // shift current triangle left by OBSTACLE_SEPERATION*i pixels (to print a cluster)
+                    if ( (dy > 2*dx_with_offset) && (dy > -(2*dx_with_offset)))    // above equations are implemented here
+                        obstacle_pixel[0] = 1'b1;
                 end
             end
         end
