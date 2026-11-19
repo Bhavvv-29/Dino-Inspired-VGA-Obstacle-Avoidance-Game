@@ -10,6 +10,9 @@ module tt_um_dino(
     input  wire       clk,      // clock - 50Mhz
     input  wire       rst_n     // reset_n - low to reset
 );
+    // reset sync
+    wire srst_n;
+    rst_sync u_rst_sync(.clk(clk), .arstn(rst_n), .srstn(srst_n));
 
     // VGA signals
     wire hsync, vsync;
@@ -31,7 +34,7 @@ module tt_um_dino(
     // hvsync generator
     hvsync_generator hvsync_gen(
     .clk(clk),
-    .rst_n(rst_n),
+    .rst_n(srst_n),
     .hsync(hsync),
     .vsync(vsync),
     .display_on(video_active),
@@ -62,8 +65,8 @@ module tt_um_dino(
     // game input with synchronizer --------------------------------------------------------------
     reg [1:0] ui_meta, ui_sync;
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always @(posedge clk or negedge srst_n) begin
+        if (!srst_n) begin
             ui_meta <= 2'b00;
             ui_sync <= 2'b00;
         end else begin
@@ -85,8 +88,8 @@ module tt_um_dino(
     wire jmp_edge;
     reg jmp_edge_r;
 
-    always @(posedge clk or negedge rst_n) begin
-      if(!rst_n)
+    always @(posedge clk or negedge srst_n) begin
+      if(!srst_n)
           jmp_edge_r <= 1'b0;
       else
           jmp_edge_r <= jmp_in;
@@ -104,7 +107,7 @@ module tt_um_dino(
         .OBSTACLE_SPEED(OBSTACLE_SPEED)
     ) u_tick_gen (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(srst_n),
         .sync(jmp_edge && ball_y==GROUND_Y), // sync signal resets the tick max count to 0 to start a fresh tick when jump is pressed
         .ball_tick(ball_tick),
         .obs_tick(obs_tick)
@@ -118,7 +121,7 @@ module tt_um_dino(
         .BALL_INITIAL_SPEED(BALL_INITIAL_SPEED)
     ) u_bsc (
         .clk(clk),
-        .rst_n(rst_n),
+        .rst_n(srst_n),
         .tick(ball_tick),
         .stop(game_over),
         .jmp_in(jmp_in), 
@@ -143,8 +146,8 @@ module tt_um_dino(
 
     reg [3:0] score_ones, score_tens, score_hundreds;
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+    always @(posedge clk or negedge srst_n) begin
+        if (!srst_n) begin
             score_ones <= 0;
             score_tens <= 0;
             score_hundreds <= 0;
@@ -196,7 +199,7 @@ module tt_um_dino(
     // 16 bit LFSR
     LFSR #(.N(16)) u_lfsr (
         .clk(clk),
-        .rst_n(rst_n), 
+        .rst_n(srst_n), 
         .q(rnd)
     );
 
@@ -205,8 +208,8 @@ module tt_um_dino(
     // cluster_size[0] and [1] correspond to the cluster size of obstacle0 and obstacle1 respectively
     reg [1:0] cluster_size[0:1];
 
-    always @(posedge clk or negedge rst_n) begin
-        if(!rst_n) begin
+    always @(posedge clk or negedge srst_n) begin
+        if(!srst_n) begin
           cluster_size[0] <= 2'b00;
           cluster_size[1] <= 2'b10;
           end
@@ -219,8 +222,8 @@ module tt_um_dino(
     // obstacle physics (obstacle0 and obstacle1)---------------------------------------------------------------------------------------
     reg obstacle_1_valid;
 
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin                          // both obstacles start at x=1023, which keeps them off screen
+    always @(posedge clk or negedge srst_n) begin
+        if (!srst_n) begin                          // both obstacles start at x=1023, which keeps them off screen
             obstacle_x[0] <= OBS_RESPAWN_X; 
             obstacle_x[1] <= OBS_RESPAWN_X;
             obstacle_1_valid <= 1'b0;              // obstacle1 spawning is turned off after reset
@@ -311,8 +314,8 @@ module tt_um_dino(
     end
 
     // game over logic ------------------------------------------------------------------------------------------------------------
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
+    always @(posedge clk or negedge srst_n) begin
+        if (!srst_n)
             game_over <= 1'b0;
         else if (game_reset_in)
             game_over <= 1'b0;
