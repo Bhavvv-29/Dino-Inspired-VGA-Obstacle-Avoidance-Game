@@ -25,5 +25,3 @@ module tick_gen #(
     assign obs_tick = (count[COUNT_WIDTH-OBSTACLE_SPEED:0] == {(COUNT_WIDTH-OBSTACLE_SPEED+1){1'b1}});  
 endmodule
 
-            
-            

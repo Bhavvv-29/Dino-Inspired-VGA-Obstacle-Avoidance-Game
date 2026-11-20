@@ -42,7 +42,7 @@ module tt_um_dino(
     .vpos(y)
     );
     
-    // FOR FPGA ONLY, COMMENT OUT FOR ACTUAL IMPLEMENTATION --------------------------------------
+    // FOR PYNQ-Z2 FPGA TEST ONLY, UNRELATED TO TINYTAPEOUT'S FPGA TEST --------------------------
     // assign uio_out[0] = video_active;
 
     // game parameters ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ module tt_um_dino(
 
     localparam OBSTACLE_HEIGHT = 23;
     localparam OBSTACLE_SPEED = 6;
-    localparam OBSTACLE_SEPERATION = 32;
+    localparam [7:0] OBSTACLE_SEPERATION = 32;
     
     localparam OBSTACLE1_SPAWN_THRESHOLD = 511;
     localparam OBS_RESPAWN_X = 1023;
@@ -254,6 +254,7 @@ module tt_um_dino(
     
     // obstacle rendering logic --------------------------------------------------------------------------------------------------------------
     localparam [10:0] OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
+    localparam SEP_BITS = $clog2(OBSTACLE_SEPERATION);  // log2 of OBSTACLE_SEPERATION (5 for 32), OBSTACLE_SEPERATION must be a power of 2 between 32 and 128
 
     /* spikes(implemented with a triangle) can be formed by the area "under" 2 intersecting lines. we choose the lines:
         -> y=2x
@@ -271,10 +272,11 @@ module tt_um_dino(
     reg signed [10:0] dx [0:1];  // x-obstacle_x for both obstacle0 and obstacle1
     wire signed [11:0] dy = $signed({2'b0, y})-$signed(OBS_TOP); // distance to the OBS_TOP y-level from the current y value    
 
-    reg signed [11:0] dx_with_offset;  // distance from current pixel's x value to the center of the current triangle being written
+    reg signed [7:0] dx_with_offset;  // distance from current pixel's x value to the center of the nearest triangle (-16 to +15)
+    reg [5:0] spike_idx;  // index of the nearest triangle in the cluster (0 to 3 are valid, anything larger is outside the cluster)
     reg [1:0] obstacle_pixel;
 
-    integer i, j;
+    integer j;
 
     always @(*) begin
         obstacle_pixel = 2'b00;
@@ -283,19 +285,23 @@ module tt_um_dino(
         dx[1] = x-obstacle_x[1];
 
         dx_with_offset = 0;          
+        spike_idx = 0;
         
         for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
-            for(i=0; i<4; i=i+1) begin  // iteration through each spike in the current cluster j, which basically means obstacle(j)
-                if (dy<=OBSTACLE_HEIGHT && i<=cluster_size[j]) begin            // checks if the spike actually exists in the cluster based on the random value
 
-                    dx_with_offset = dx[j]+(i[10:0]*OBSTACLE_SEPERATION);       // shift current triangle left by OBSTACLE_SEPERATION*i pixels (to print a cluster)
-                    if ( (dy > 2*dx_with_offset) && (dy > -(2*dx_with_offset)))    // above equations are implemented here
-                        obstacle_pixel[0] = 1'b1;
-                end
+            /* spikes are exactly OBSTACLE_SEPERATION(32) pixels apart and never overlap, so a pixel can only belong to the nearest spike.
+                dx[10:5] is the 32px cell, dx[4] rounds it to the nearest spike centre, and dx[4:0] as a signed 5 bit number is the distance to that centre.
+                this needs OBSTACLE_SEPERATION to be a power of 2 (32) */
+            spike_idx = 6'd0 - dx[j][10:SEP_BITS] - dx[j][SEP_BITS-1];                // which spike in the cluster the pixel is closest to (spike 0 is the base spike, spike i is shifted left by 32*i)
+            dx_with_offset = {{(8-SEP_BITS){dx[j][SEP_BITS-1]}}, dx[j][SEP_BITS-1:0]};             // distance to the center of that spike
+
+            if (dy<=OBSTACLE_HEIGHT && spike_idx<={4'b0, cluster_size[j]}) begin     // checks if the spike actually exists in the cluster based on the random value (also rejects pixels outside the cluster)
+                if ( (dy > 2*dx_with_offset) && (dy > -(2*dx_with_offset)))    // above equations are implemented here
+                    obstacle_pixel[0] = 1'b1;
             end
         end
     end
-
+ 
     // display colouring logic -----------------------------------------------------------------------------------------------------
     always @(*) begin
         {R, G, B} = 6'b000000;
