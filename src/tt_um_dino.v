@@ -49,14 +49,14 @@ module tt_um_dino(
     localparam BALL_X = 100;
     localparam MAX_SCORE = 12'h999;
 
-    localparam signed [9:0] BALL_INITIAL_SPEED = -13;
+    localparam signed [7:0] BALL_INITIAL_SPEED = -13;
 
     localparam GROUND_Y = 400;
     localparam GRAVITY_SCALE = 3750;
 
     localparam OBSTACLE_HEIGHT = 23;
     localparam OBSTACLE_SPEED = 6;
-    localparam [7:0] OBSTACLE_SEPERATION = 32;
+    localparam OBSTACLE_SEPERATION = 32;
     
     localparam OBSTACLE1_SPAWN_THRESHOLD = 511;
     localparam OBS_RESPAWN_X = 1023;
@@ -251,10 +251,9 @@ module tt_um_dino(
                 obstacle_x[1] <= (obstacle_x[1]==0) ? OBS_RESPAWN_X : obstacle_x[1]-1;
         end
     end
-    
+
     // obstacle rendering logic --------------------------------------------------------------------------------------------------------------
     localparam [10:0] OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
-    localparam SEP_BITS = $clog2(OBSTACLE_SEPERATION);  // log2 of OBSTACLE_SEPERATION (5 for 32), OBSTACLE_SEPERATION must be a power of 2 between 32 and 128
 
     /* spikes(implemented with a triangle) can be formed by the area "under" 2 intersecting lines. we choose the lines:
         -> y=2x
@@ -265,43 +264,109 @@ module tt_um_dino(
     hence, our equations become:
         -> y>2x
         -> y>-2x
-    
-    now by varying x with an offset and moving the offset around, we can move the triangle around or add multiple triangles that move along together.
+
+    since OBSTACLE_SEPERATION is 32, we can divide dx into groups of 32 pixels.
+    the upper bits indicate which spike group the current pixel belongs to, while the lower 5 bits indicate the position within that group.
+
+    this allows us to check whether the pixel belongs to any triangle in the cluster without individually calculating the offset and checking all 4 triangles.
     */
 
-    reg signed [10:0] dx [0:1];  // x-obstacle_x for both obstacle0 and obstacle1
-    wire signed [11:0] dy = $signed({2'b0, y})-$signed(OBS_TOP); // distance to the OBS_TOP y-level from the current y value    
+    reg signed [11:0] dy;
+    reg valid_y;
 
-    reg signed [7:0] dx_with_offset;  // distance from current pixel's x value to the center of the nearest triangle (-16 to +15)
-    reg [5:0] spike_idx;  // index of the nearest triangle in the cluster (0 to 3 are valid, anything larger is outside the cluster)
+    reg [4:0] triangle_radius;
+    reg [5:0] triangle_left_limit;
+
+    reg signed [10:0] dx0, dx1;
+
+    reg signed [5:0] dx0_group, dx1_group;
+    reg [4:0] dx0_remainder, dx1_remainder;
+
+    reg signed [5:0] cluster_size0, cluster_size1;
+
+    reg obstacle0_hit, obstacle1_hit;
+
     reg [1:0] obstacle_pixel;
 
-    integer j;
-
     always @(*) begin
-        obstacle_pixel = 2'b00;
 
-        dx[0] = x-obstacle_x[0];    
-        dx[1] = x-obstacle_x[1];
+        // calculate vertical distance from obstacle top
+        dy = $signed({2'b00, y})-$signed({1'b0, OBS_TOP});
 
-        dx_with_offset = 0;          
-        spike_idx = 0;
-        
-        for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
+        valid_y = (dy>0) && (dy<=OBSTACLE_HEIGHT);
 
-            /* spikes are exactly OBSTACLE_SEPERATION(32) pixels apart and never overlap, so a pixel can only belong to the nearest spike.
-                dx[10:5] is the 32px cell, dx[4] rounds it to the nearest spike centre, and dx[4:0] as a signed 5 bit number is the distance to that centre.
-                this needs OBSTACLE_SEPERATION to be a power of 2 (32) */
-            spike_idx = 6'd0 - dx[j][10:SEP_BITS] - dx[j][SEP_BITS-1];                // which spike in the cluster the pixel is closest to (spike 0 is the base spike, spike i is shifted left by 32*i)
-            dx_with_offset = {{(8-SEP_BITS){dx[j][SEP_BITS-1]}}, dx[j][SEP_BITS-1:0]};             // distance to the center of that spike
+        // calculate triangle radius
+        triangle_radius = 0;
+        triangle_left_limit = 6'd32;
 
-            if (dy<=OBSTACLE_HEIGHT && spike_idx<={4'b0, cluster_size[j]}) begin     // checks if the spike actually exists in the cluster based on the random value (also rejects pixels outside the cluster)
-                if ( (dy > 2*dx_with_offset) && (dy > -(2*dx_with_offset)))    // above equations are implemented here
-                    obstacle_pixel[0] = 1'b1;
-            end
+        if (valid_y) begin
+            triangle_radius = (dy-12'sd1) >>> 1;
+            triangle_left_limit = 6'd32-{1'b0, triangle_radius};
         end
+
+        // calculate signed horizontal distance from each obstacle
+        dx0 = $signed({1'b0, x})-$signed({1'b0, obstacle_x[0]});
+        dx1 = $signed({1'b0, x})-$signed({1'b0, obstacle_x[1]});
+
+        // divide dx into groups of 32 pixels
+        dx0_group = dx0 >>> 5;
+        dx1_group = dx1 >>> 5;
+
+        dx0_remainder = dx0[4:0];
+        dx1_remainder = dx1[4:0];
+
+        // extend cluster_size to signed values for comparison
+        cluster_size0 = $signed({4'b0000, cluster_size[0]});
+        cluster_size1 = $signed({4'b0000, cluster_size[1]});
+
+        // obstacle0 hit detection
+        obstacle0_hit = 1'b0;
+
+        if (valid_y) begin
+
+            // pixel is close to the beginning of a 32-pixel group
+            if ((dx0_remainder<=triangle_radius) &&
+                (dx0_group>=-cluster_size0) &&
+                (dx0_group<=0))
+
+                obstacle0_hit = 1'b1;
+
+            // pixel is close to the end of the previous 32-pixel group
+            else if (({1'b0, dx0_remainder}>=triangle_left_limit) &&
+                     (dx0_group>=(-cluster_size0-6'sd1)) &&
+                     (dx0_group<=-6'sd1))
+
+                obstacle0_hit = 1'b1;
+
+        end
+
+        // obstacle1 hit detection
+        obstacle1_hit = 1'b0;
+
+        if (valid_y) begin
+
+            // pixel is close to the beginning of a 32-pixel group
+            if ((dx1_remainder<=triangle_radius) &&
+                (dx1_group>=-cluster_size1) &&
+                (dx1_group<=0))
+
+                obstacle1_hit = 1'b1;
+
+            // pixel is close to the end of the previous 32-pixel group
+            else if (({1'b0, dx1_remainder}>=triangle_left_limit) &&
+                     (dx1_group>=(-cluster_size1-6'sd1)) &&
+                     (dx1_group<=-6'sd1))
+
+                obstacle1_hit = 1'b1;
+
+        end
+
+        // combine both obstacle clusters
+        obstacle_pixel = 2'b00;
+        obstacle_pixel[0] = obstacle0_hit || obstacle1_hit;
+
     end
- 
+
     // display colouring logic -----------------------------------------------------------------------------------------------------
     always @(*) begin
         {R, G, B} = 6'b000000;
