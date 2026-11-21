@@ -49,14 +49,14 @@ module tt_um_dino(
     localparam BALL_X = 100;
     localparam MAX_SCORE = 12'h999;
 
-    localparam signed [9:0] BALL_INITIAL_SPEED = -13;
+    localparam signed [7:0] BALL_INITIAL_SPEED = -13;
 
     localparam GROUND_Y = 400;
     localparam GRAVITY_SCALE = 3750;
 
     localparam OBSTACLE_HEIGHT = 23;
     localparam OBSTACLE_SPEED = 6;
-    localparam [7:0] OBSTACLE_SEPERATION = 32;
+    localparam OBSTACLE_SEPERATION = 32;
     
     localparam OBSTACLE1_SPAWN_THRESHOLD = 511;
     localparam OBS_RESPAWN_X = 1023;
@@ -251,57 +251,59 @@ module tt_um_dino(
                 obstacle_x[1] <= (obstacle_x[1]==0) ? OBS_RESPAWN_X : obstacle_x[1]-1;
         end
     end
-    
+
     // obstacle rendering logic --------------------------------------------------------------------------------------------------------------
     localparam [10:0] OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
-    localparam SEP_BITS = $clog2(OBSTACLE_SEPERATION);  // log2 of OBSTACLE_SEPERATION (5 for 32), OBSTACLE_SEPERATION must be a power of 2 between 32 and 128
 
     /* spikes(implemented with a triangle) can be formed by the area "under" 2 intersecting lines. we choose the lines:
-        -> y=2x
-        -> y=-2x
-        here for each triangle. this gives a simple isosceles triangle with slope 2.
-
-    however, in vga pixel rendering, the y value increases as we go from top to bottom. hence we must invert the "under" condition and check if y>2x or y>-2x.
-    hence, our equations become:
         -> y>2x
         -> y>-2x
+        here for each triangle. this gives a simple isosceles triangle with slope 2.
+
+    since OBSTACLE_SEPERATION is 32, we can divide dx into groups of 32 pixels.
+    dx is shifted by 16 so the center of every spike is the middle of its group, which means a whole spike (both halves) is inside one group.
+    the upper bits indicate which spike group the current pixel belongs to, while the lower 5 bits indicate the position within that group.
+
+    this allows us to check whether the pixel belongs to any triangle in the cluster without individually calculating the offset and checking all 4 triangles.
+    */  
+    wire signed [11:0] dy = $signed({2'b00, y})-$signed({1'b0, OBS_TOP});  // distance from the current pixel's y to OBS_TOP: dy=y-OBS_TOP
+
+    wire signed [10:0] dx [0:1]; //distance from current pixel's x to obstacle_x: dx=x-obs_x
+    assign dx[0] = $signed({1'b0, x})-$signed({1'b0, obstacle_x[0]});
+    assign dx[1] = $signed({1'b0, x})-$signed({1'b0, obstacle_x[1]});
+    //after dy and dx, the line equations become dy>2dx and dy>-2dx
+
+    /*dx is 11 bits signed value, so range is -1024 to 1023. the entire range can be divided into slots of 32px each ,where an obstacle can be rendered
+    so the top 6 bits (slot_idx) represent the slot index (64 possible slots from -32nd to +31st slot relative to the main obstacle) 
+    and the bottom 5 bits (dx_off) represent the pixel location inside the slot. the entire array of 64 slots are generated relative to the obstacle_x, 
+    which makes the entire array of slots slode across the screen. the point is to render spikes only on certain slots based on the actual obstacle generation and physics*/
     
-    now by varying x with an offset and moving the offset around, we can move the triangle around or add multiple triangles that move along together.
-    */
+    wire signed [5:0] slot_idx [0:1];
+    assign slot_idx[0] = dx[0][10:5];
+    assign slot_idx[1] = dx[1][10:5];
 
-    reg signed [10:0] dx [0:1];  // x-obstacle_x for both obstacle0 and obstacle1
-    wire signed [11:0] dy = $signed({2'b0, y})-$signed(OBS_TOP); // distance to the OBS_TOP y-level from the current y value    
+    // distance from the current pixel to the center of its spike (-16 to +15)
+    wire signed [4:0] dx_off [0:1];
+    assign dx_off[0] = dx[0][4:0]-5'd16;
+    assign dx_off[1] = dx[1][4:0]-5'd16;
+    //after offset, the line equations become dy>2dx_off and dy>-2dx_off
 
-    reg signed [7:0] dx_with_offset;  // distance from current pixel's x value to the center of the nearest triangle (-16 to +15)
-    reg [5:0] spike_idx;  // index of the nearest triangle in the cluster (0 to 3 are valid, anything larger is outside the cluster)
-    reg [1:0] obstacle_pixel;
+    reg obstacle_pixel;
 
-    integer j;
+    integer i; 
 
     always @(*) begin
-        obstacle_pixel = 2'b00;
+        obstacle_pixel = 1'b0;
 
-        dx[0] = x-obstacle_x[0];    
-        dx[1] = x-obstacle_x[1];
-
-        dx_with_offset = 0;          
-        spike_idx = 0;
-        
-        for (j=0; j<2; j=j+1) begin   // iteration through each cluster (obstacle0 and obstacle1)                
-
-            /* spikes are exactly OBSTACLE_SEPERATION(32) pixels apart and never overlap, so a pixel can only belong to the nearest spike.
-                dx[10:5] is the 32px cell, dx[4] rounds it to the nearest spike centre, and dx[4:0] as a signed 5 bit number is the distance to that centre.
-                this needs OBSTACLE_SEPERATION to be a power of 2 (32) */
-            spike_idx = 6'd0 - dx[j][10:SEP_BITS] - dx[j][SEP_BITS-1];                // which spike in the cluster the pixel is closest to (spike 0 is the base spike, spike i is shifted left by 32*i)
-            dx_with_offset = {{(8-SEP_BITS){dx[j][SEP_BITS-1]}}, dx[j][SEP_BITS-1:0]};             // distance to the center of that spike
-
-            if (dy<=OBSTACLE_HEIGHT && spike_idx<={4'b0, cluster_size[j]}) begin     // checks if the spike actually exists in the cluster based on the random value (also rejects pixels outside the cluster)
-                if ( (dy > 2*dx_with_offset) && (dy > -(2*dx_with_offset)))    // above equations are implemented here
-                    obstacle_pixel[0] = 1'b1;
+        // check both obstacle clusters
+        for (i=0; i<2; i=i+1) begin 
+            if (dy>0 && dy<=OBSTACLE_HEIGHT) begin
+                if ((2*dx_off[i]<dy) && (-2*dx_off[i]<dy) && (slot_idx[i]>=-$signed({4'b0000, cluster_size[i]})) && (slot_idx[i]<=0))
+                    obstacle_pixel = 1'b1;
             end
         end
     end
- 
+    
     // display colouring logic -----------------------------------------------------------------------------------------------------
     always @(*) begin
         {R, G, B} = 6'b000000;
@@ -312,7 +314,7 @@ module tt_um_dino(
                 {R, G, B} = 6'b111111;
             else if(state_display_pixel)
                 {R, G, B} = 6'b101000;
-            else if(|obstacle_pixel)
+            else if(obstacle_pixel)
                 {R, G, B} = 6'b101010;
             else if(y>GROUND_Y)
                 {R, G, B} = 6'b010100;

@@ -118,6 +118,10 @@ The jump and game-reset inputs pass through two-flop synchronisers. The tick gen
 
 The design can be tried in the browser on VGA Playground: [Open in VGA Playground](https://vga-playground.com/?repo=https://github.com/Bhavvv-29/Dino-Inspired-VGA-Obstacle-Avoidance-Game)
 
+OR
+
+Use the VGA Simulator: [vga_sim](https://github.com/jar/vga_sim) 
+
 ## Limitations
 
 1. **No increasing speed.** There is no increase in speed with the score, like in the real chrome dino game.

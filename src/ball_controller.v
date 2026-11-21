@@ -3,17 +3,17 @@
     module ball_controller #(
         parameter GROUND_Y=400,
         parameter GRAVITY_SCALE=2000,
-        parameter signed [9:0] BALL_INITIAL_SPEED=-13
+        parameter signed [7:0] BALL_INITIAL_SPEED=-13
     )(
         input wire clk, rst_n, jmp_in, tick, stop,
         output reg [9:0] ball_y
     );
 
-        reg signed [9:0] ball_speed;
+        reg signed [7:0] ball_speed;
 
         // split ball_speed into absolute ball speed and direction (0-down, 1-up)
-        wire [9:0] ball_speed_abs = ball_speed[9] ? -ball_speed : ball_speed; 
-        wire ball_dir = ball_speed[9]; 
+        wire [7:0] ball_speed_abs = ball_speed[7] ? -ball_speed : ball_speed; 
+        wire ball_dir = ball_speed[7]; 
 
         reg [15:0] count;
         reg [15:0] period;
@@ -64,7 +64,11 @@
                 if (ball_y >= GROUND_Y && !ball_dir && ball_speed_abs != 0) // if ball is on the ground, and nonzero positive speed (falling down), set ball's y to GROUND_Y
                     ball_y <= GROUND_Y;
                 else if(ball_speed_abs!=0 && !stop) // if ball's absolute speed is nonzero (independent of direction), and game is not over, update the ball's y position based on the direction of speed
-                    ball_y <= ball_dir ? ball_y-1 : ball_y+1;
+                    ball_y <= ball_y_next;
             end
         end
+
+        wire [9:0] ball_y_step = ball_dir ? 10'h3FF : 10'h001; // decrement or increment ball_y based on ball_dir
+
+        wire [9:0] ball_y_next = ball_y + ball_y_step;
     endmodule
