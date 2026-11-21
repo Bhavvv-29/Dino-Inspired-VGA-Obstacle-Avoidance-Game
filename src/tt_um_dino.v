@@ -101,7 +101,7 @@ module tt_um_dino(
     wire ball_tick, obs_tick;
     wire [9:0] ball_y;
 
-    reg [9:0] obstacle_x [0:1]; // x coordinate of the center of the base triangle (right most triangle) in a cluster (for obstacle spikes)
+    reg [9:0] obstacle_x [0:1]; // x coordinate of the leftmost point of the base slot (right most triangle) in a cluster (for obstacle spikes)
 
     tick_gen #(
         .OBSTACLE_SPEED(OBSTACLE_SPEED)
@@ -253,40 +253,25 @@ module tt_um_dino(
     end
 
     // obstacle rendering logic --------------------------------------------------------------------------------------------------------------
-    localparam [10:0] OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
+     localparam [10:0] OBS_TOP = GROUND_Y-OBSTACLE_HEIGHT;
 
-    /* spikes(implemented with a triangle) can be formed by the area "under" 2 intersecting lines. we choose the lines:
-        -> y>2x
-        -> y>-2x
-        here for each triangle. this gives a simple isosceles triangle with slope 2.
+    /* spikes,which are implemented with a triangle, can be formed by the area "under" 2 intersecting lines. chosen lines are y>2x and y>-2x.
+        this gives a simple isosceles triangle with slope 2. (y increases downwards on vga, so "under" the lines means a bigger y) */
 
-    since OBSTACLE_SEPERATION is 32, we can divide dx into groups of 32 pixels.
-    dx is shifted by 16 so the center of every spike is the middle of its group, which means a whole spike (both halves) is inside one group.
-    the upper bits indicate which spike group the current pixel belongs to, while the lower 5 bits indicate the position within that group.
+    wire [10:0] dy = {1'b0, y}-OBS_TOP; 
+    // rows below the top of the spikes. above the top it wraps to a huge number, 
+    // so dy<=OBSTACLE_HEIGHT also takes care of 
+    // the false negative problem due to overlap
 
-    this allows us to check whether the pixel belongs to any triangle in the cluster without individually calculating the offset and checking all 4 triangles.
-    */  
-    wire signed [11:0] dy = $signed({2'b00, y})-$signed({1'b0, OBS_TOP});  // distance from the current pixel's y to OBS_TOP: dy=y-OBS_TOP
+    /* dx is the distance from the left end of the cluster, which is the start of the leftmost spike's 32px slot.
+        the leftmost spike is centered at obstacle_x-32*cluster_size, and its slot starts 16px before that, so dx = x-obstacle_x+32*cluster_size+16
+        ({cluster_size, 5'b10000} is 32*cluster_size+16). the cluster is cluster_size+1 slots of 32px:
+        dx[10:5] is the slot number (0 to cluster_size) and dx[4:0] is the position in the slot, the center of the spike is at 16.
+        left of the cluster dx wraps to a huge number, so a single compare also helps take care of this false negative issue */
 
-    wire signed [10:0] dx [0:1]; //distance from current pixel's x to obstacle_x: dx=x-obs_x
-    assign dx[0] = $signed({1'b0, x})-$signed({1'b0, obstacle_x[0]});
-    assign dx[1] = $signed({1'b0, x})-$signed({1'b0, obstacle_x[1]});
-    //after dy and dx, the line equations become dy>2dx and dy>-2dx
-
-    /*dx is 11 bits signed value, so range is -1024 to 1023. the entire range can be divided into slots of 32px each ,where an obstacle can be rendered
-    so the top 6 bits (slot_idx) represent the slot index (64 possible slots from -32nd to +31st slot relative to the main obstacle) 
-    and the bottom 5 bits (dx_off) represent the pixel location inside the slot. the entire array of 64 slots are generated relative to the obstacle_x, 
-    which makes the entire array of slots slode across the screen. the point is to render spikes only on certain slots based on the actual obstacle generation and physics*/
-    
-    wire signed [5:0] slot_idx [0:1];
-    assign slot_idx[0] = dx[0][10:5];
-    assign slot_idx[1] = dx[1][10:5];
-
-    // distance from the current pixel to the center of its spike (-16 to +15)
-    wire signed [4:0] dx_off [0:1];
-    assign dx_off[0] = dx[0][4:0]-5'd16;
-    assign dx_off[1] = dx[1][4:0]-5'd16;
-    //after offset, the line equations become dy>2dx_off and dy>-2dx_off
+    wire [10:0] dx [0:1];
+    assign dx[0] = {1'b0, x}-{1'b0, obstacle_x[0]}+{4'b0000, cluster_size[0], 5'b10000};
+    assign dx[1] = {1'b0, x}-{1'b0, obstacle_x[1]}+{4'b0000, cluster_size[1], 5'b10000};
 
     reg obstacle_pixel;
 
@@ -297,13 +282,12 @@ module tt_um_dino(
 
         // check both obstacle clusters
         for (i=0; i<2; i=i+1) begin 
-            if (dy>0 && dy<=OBSTACLE_HEIGHT) begin
-                if ((2*dx_off[i]<dy) && (-2*dx_off[i]<dy) && (slot_idx[i]>=-$signed({4'b0000, cluster_size[i]})) && (slot_idx[i]<=0))
-                    obstacle_pixel = 1'b1;
-            end
+            // inside the cluster, and inside the triangle,at row dy the triangle covers dy/2 px on each side of the slot's center, so 16-dy/2 < position < 16+dy/2
+            // basically we are rewriting y>2x as y/2>x. but with offset also. same for y>-2x.
+            if (dy<=OBSTACLE_HEIGHT && dx[i][10:5]<={4'b0000, cluster_size[i]} && (2*dx[i][4:0]+dy>32) && (2*dx[i][4:0]<32+dy))
+                obstacle_pixel = 1'b1;
         end
     end
-    
     // display colouring logic -----------------------------------------------------------------------------------------------------
     always @(*) begin
         {R, G, B} = 6'b000000;
