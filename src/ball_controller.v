@@ -57,6 +57,7 @@
         end 
 
         // ball position logic  
+        wire [9:0] ball_y_next;
         always @(posedge clk or negedge rst_n) begin
             if (!rst_n)
                 ball_y <= GROUND_Y;
@@ -70,5 +71,5 @@
 
         wire [9:0] ball_y_step = ball_dir ? 10'h3FF : 10'h001; // decrement or increment ball_y based on ball_dir
 
-        wire [9:0] ball_y_next = ball_y + ball_y_step;
+        assign ball_y_next = ball_y + ball_y_step;
     endmodule

@@ -284,7 +284,7 @@ module tt_um_dino(
         for (i=0; i<2; i=i+1) begin 
             // inside the cluster, and inside the triangle,at row dy the triangle covers dy/2 px on each side of the slot's center, so 16-dy/2 < position < 16+dy/2
             // basically we are rewriting y>2x as y/2>x. but with offset also. same for y>-2x.
-            if (dy<=OBSTACLE_HEIGHT && dx[i][10:5]<={4'b0000, cluster_size[i]} && (2*dx[i][4:0]+dy>32) && (2*dx[i][4:0]<32+dy))
+            if (dy<=OBSTACLE_HEIGHT && dx[i][10:5]<={4'b0000, cluster_size[i]} && (2*dx[i][4:0]+dy>OBSTACLE_SEPERATION) && (2*dx[i][4:0]<OBSTACLE_SEPERATION+dy))
                 obstacle_pixel = 1'b1;
         end
     end
