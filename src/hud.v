@@ -83,25 +83,25 @@ module hud (
     // segments {a,b,c,d,e,f,g}, digit[4] is only set by the y code
     reg [6:0] seg;
     always @(*) begin
-        case (digit[3:0])
-            4'd0:  seg = 7'b1111110;   // 0 / O
-            4'd1:  seg = 7'b0110000;   // 1 / I
-            4'd2:  seg = 7'b1101101;
-            4'd3:  seg = 7'b1111001;
-            4'd4:  seg = 7'b0110011;   // 4
-            4'd5:  seg = 7'b1011011;   // 5 / S
-            4'd6:  seg = 7'b1011111;
-            4'd7:  seg = 7'b1110000;
-            4'd8:  seg = 7'b1111111;
-            4'd9:  seg = 7'b1111011;
-            4'd10: seg = 7'b1001111;   // E
-            4'd11: seg = 7'b0111101;   // d (D)
-            4'd12: seg = 7'b0000101;   // r
-            4'd13: seg = 7'b0001111;   // t
-            4'd14: seg = 7'b1110111;   // A
-            4'd15: seg = 7'b0111110;   // U
+        case (digit)
+            5'd0:  seg = 7'b1111110;   // 0 / O
+            5'd1:  seg = 7'b0110000;   // 1 / I
+            5'd2:  seg = 7'b1101101;
+            5'd3:  seg = 7'b1111001;
+            5'd4:  seg = 7'b0110011;   // 4
+            5'd5:  seg = 7'b1011011;   // 5 / S
+            5'd6:  seg = 7'b1011111;
+            5'd7:  seg = 7'b1110000;
+            5'd8:  seg = 7'b1111111;
+            5'd9:  seg = 7'b1111011;
+            5'd10: seg = 7'b1001111;   // E
+            5'd11: seg = 7'b0111101;   // d (D)
+            5'd12: seg = 7'b0000101;   // r
+            5'd13: seg = 7'b0001111;   // t
+            5'd14: seg = 7'b1110111;   // A
+            5'd15: seg = 7'b0111110;   // U
+            default: seg = 7'b0111011;   // Y
         endcase
-        if (digit[4]) seg = 7'b0111011;   // Y
     end
 
     wire top = ly < T;
