@@ -1,4 +1,5 @@
 `default_nettype none
+`define PYNQ_FPGA_TEST 0  
 
 module tt_um_dino(
     input  wire [7:0] ui_in,    // Dedicated inputs
@@ -25,8 +26,8 @@ module tt_um_dino(
     assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
 
     // Unused outputs assigned to 0.
-    assign uio_out = 0;
-    assign uio_oe  = 0;
+    assign uio_out = `PYNQ_FPGA_TEST ? {7'd0, video_active} : 8'd0;
+    assign uio_oe  = 8'd0;
 
     // Unused inputs
     wire [14:0] _unused = {ui_in[7:2], uio_in, ena};
@@ -41,9 +42,6 @@ module tt_um_dino(
     .hpos(x),
     .vpos(y)
     );
-    
-    // FOR PYNQ-Z2 FPGA TEST ONLY, UNRELATED TO TINYTAPEOUT'S FPGA TEST --------------------------
-    // assign uio_out[0] = video_active;
 
     // game parameters ---------------------------------------------------------------------------
     localparam BALL_X = 100;

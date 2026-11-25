@@ -1,5 +1,7 @@
+`default_nettype none
+
 module rst_sync(
-    input clk, arstn,
+    input wire clk, arstn,
     output reg srstn
 );
     reg d;
